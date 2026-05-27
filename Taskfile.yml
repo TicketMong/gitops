@@ -58,10 +58,28 @@ tasks:
         if [ -n "${image_namespace}" ]; then
           image_registry="${image_registry%/}/${image_namespace#/}"
         fi
+        app_field() {
+          awk -v wanted="$2" '
+            $1 == "app:" { in_app = 1; next }
+            in_app && /^[^[:space:]]/ { in_app = 0 }
+            in_app {
+              line = $0
+              sub(/^[[:space:]]+/, "", line)
+              key = line
+              sub(/:.*/, "", key)
+              if (key == wanted) {
+                sub(/^[^:]*:[[:space:]]*/, "", line)
+                gsub(/^"|"$/, "", line)
+                print line
+                exit
+              }
+            }
+          ' "$1"
+        }
         for service_file in values/services/*.yaml; do
           service="$(basename "${service_file}" .yaml)"
-          namespace="$(ruby -ryaml -e 'puts YAML.load_file(ARGV[0]).fetch("app").fetch("namespace")' "${service_file}")"
-          app_name="$(ruby -ryaml -e 'puts YAML.load_file(ARGV[0]).fetch("app").fetch("name")' "${service_file}")"
+          namespace="$(app_field "${service_file}" namespace)"
+          app_name="$(app_field "${service_file}" name)"
           release="${service}-{{.LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX}}"
           {{.HELM}} upgrade --install "${release}" {{.SERVICE_CHART}} \
             --namespace "${namespace}" \
@@ -124,27 +142,26 @@ tasks:
           host_port=5000
         fi
         if docker inspect "${container}" >/dev/null 2>&1; then
-          if ! docker inspect "${container}" | ruby -rjson -e 'data = JSON.parse(STDIN.read); exit(data[0].fetch("State").fetch("Running") ? 0 : 1)'; then
+          running_container="$(docker ps --filter "name=^/${container}$" --filter status=running -q)"
+          if [ -z "${running_container}" ]; then
             docker start "${container}" >/dev/null
           fi
         else
           docker run -d --restart=always -p "127.0.0.1:${host_port}:5000" --name "${container}" registry:2 >/dev/null
         fi
-        nodes="$(docker ps -q | while read -r id; do image="$(docker inspect "${id}" | ruby -rjson -e 'data = JSON.parse(STDIN.read); puts data[0].fetch("Config").fetch("Image")')"; case "${image}" in kindest/node:*) printf '%s\n' "${id}" ;; esac; done)"
+        nodes="$(docker ps --filter ancestor=kindest/node -q)"
         if [ -z "${nodes}" ]; then
           printf '%s\n' 'No kindest/node containers found. Registry is running, but no node mirror was configured.'
           task dev:registry:check
           exit 0
         fi
         for node in ${nodes}; do
-          network="$(docker inspect "${node}" | ruby -rjson -e 'data = JSON.parse(STDIN.read); puts data[0].fetch("NetworkSettings").fetch("Networks").keys.first')"
+          network="$(docker inspect --format '{{"{{"}}range $name, $_ := .NetworkSettings.Networks{{"}}"}}{{"{{"}}println $name{{"}}"}}{{"{{"}}end{{"}}"}}' "${node}" | head -n 1)"
           if [ -z "${network}" ]; then
             printf 'Could not resolve Docker network for node container %s.\n' "${node}" >&2
             exit 2
           fi
-          if ! docker inspect "${container}" | ruby -rjson -e 'data = JSON.parse(STDIN.read); network = ARGV.fetch(0); exit(data[0].fetch("NetworkSettings").fetch("Networks").key?(network) ? 0 : 1)' "${network}"; then
-            docker network connect "${network}" "${container}"
-          fi
+          docker network connect "${network}" "${container}" 2>/dev/null || true
           docker exec "${node}" sh -c "mkdir -p '/etc/containerd/certs.d/${registry}' && printf '%s\n' 'server = \"http://${registry}\"' '' '[host.\"http://${container}:5000\"]' '  capabilities = [\"pull\", \"resolve\"]' > '/etc/containerd/certs.d/${registry}/hosts.toml' && systemctl restart containerd"
         done
         task dev:registry:check
@@ -172,7 +189,7 @@ tasks:
           fi
           sleep 1
         done
-        nodes="$(docker ps -q | while read -r id; do image="$(docker inspect "${id}" | ruby -rjson -e 'data = JSON.parse(STDIN.read); puts data[0].fetch("Config").fetch("Image")')"; case "${image}" in kindest/node:*) printf '%s\n' "${id}" ;; esac; done)"
+        nodes="$(docker ps --filter ancestor=kindest/node -q)"
         if [ -z "${nodes}" ]; then
           printf '%s\n' 'Registry API is reachable; no kindest/node containers were found to check.'
           exit 0
@@ -182,7 +199,7 @@ tasks:
         done
 
   dev:images:
-    desc: service repo의 공개 Makefile 명령으로 Docker Desktop dev image를 build/push합니다.
+    desc: service repo의 공개 Taskfile 명령으로 Docker Desktop dev image를 build/push합니다.
     cmds:
       - task dev:registry
       - |
@@ -192,20 +209,20 @@ tasks:
           printf 'SERVICE_REPO does not exist: %s\n' "${service_repo}" >&2
           exit 2
         fi
-        if [ ! -f "${service_repo}/Makefile" ]; then
-          printf 'SERVICE_REPO has no Makefile: %s\n' "${service_repo}" >&2
+        if [ ! -f "${service_repo}/Taskfile.yml" ]; then
+          printf 'SERVICE_REPO has no Taskfile.yml: %s\n' "${service_repo}" >&2
           exit 2
         fi
         for target in app-images-build app-images-push; do
-          if ! make -C "${service_repo}" -n "${target}" \
+          if ! task --dir "${service_repo}" --dry "${target}" \
             IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
             IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
             IMAGE_TAG="{{.DEV_IMAGE_TAG}}" >/dev/null 2>&1; then
-            printf 'SERVICE_REPO Makefile is missing required target: %s\n' "${target}" >&2
+            printf 'SERVICE_REPO Taskfile is missing required target: %s\n' "${target}" >&2
             exit 2
           fi
         done
-        make -C "${service_repo}" app-images-push \
+        task --dir "${service_repo}" app-images-push \
           IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
           IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
           IMAGE_TAG="{{.DEV_IMAGE_TAG}}"
@@ -269,7 +286,7 @@ tasks:
         service='{{.KONG_PROXY_SERVICE}}'
         for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
           address="$({{.KUBECTL}} -n "${namespace}" get svc "${service}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
-          if [ -n "${address}" ] && ruby -rsocket -e 'TCPSocket.new("127.0.0.1", 80).close'; then
+          if [ -n "${address}" ] && curl -sS --max-time 2 -o /dev/null http://localhost/; then
             printf 'Kong proxy is available at http://localhost/ (LoadBalancer IP: %s)\n' "${address}"
             exit 0
           fi
@@ -307,9 +324,27 @@ tasks:
     cmds:
       - |
         set -eu
+        app_field() {
+          awk -v wanted="$2" '
+            $1 == "app:" { in_app = 1; next }
+            in_app && /^[^[:space:]]/ { in_app = 0 }
+            in_app {
+              line = $0
+              sub(/^[[:space:]]+/, "", line)
+              key = line
+              sub(/:.*/, "", key)
+              if (key == wanted) {
+                sub(/^[^:]*:[[:space:]]*/, "", line)
+                gsub(/^"|"$/, "", line)
+                print line
+                exit
+              }
+            }
+          ' "$1"
+        }
         for service_file in values/services/*.yaml; do
           service="$(basename "${service_file}" .yaml)"
-          namespace="$(ruby -ryaml -e 'puts YAML.load_file(ARGV[0]).fetch("app").fetch("namespace")' "${service_file}")"
+          namespace="$(app_field "${service_file}" namespace)"
           release="${service}-{{.LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX}}"
           {{.HELM}} uninstall "${release}" --namespace "${namespace}" --ignore-not-found
         done
@@ -517,4 +552,23 @@ tasks:
     cmds:
       - |
         set -eu
-        find argo -name '*.yaml' -exec ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_file(file) }' {} +
+        has_key() {
+          wanted="$1"
+          file="$2"
+          while IFS= read -r line; do
+            case "${line}" in
+              "${wanted}:"*|[[:space:]]*"${wanted}:"*) return 0 ;;
+            esac
+          done < "${file}"
+          return 1
+        }
+        for file in argo/*.yaml argo/applications/*/*.yaml argo/applications/*/services/*.yaml; do
+          [ -e "${file}" ] || continue
+          if [ ! -s "${file}" ]; then
+            printf 'Empty Argo manifest: %s\n' "${file}" >&2
+            exit 2
+          fi
+          has_key apiVersion "${file}" || { printf 'Missing apiVersion: %s\n' "${file}" >&2; exit 2; }
+          has_key kind "${file}" || { printf 'Missing kind: %s\n' "${file}" >&2; exit 2; }
+          has_key metadata "${file}" || { printf 'Missing metadata: %s\n' "${file}" >&2; exit 2; }
+        done

@@ -153,7 +153,7 @@ image:
   registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
 ```
 
-Docker Desktop local dev만 예외적으로 `task dev`가 orchestration 편의를 제공한다. 이때도 GitOps repo는 Dockerfile 목록이나 build context를 알지 않고, sibling `../service` 또는 `SERVICE_REPO=/path/to/service`의 공개 Makefile target만 호출한다.
+Docker Desktop local dev만 예외적으로 `task dev`가 orchestration 편의를 제공한다. 이때도 GitOps repo는 Dockerfile 목록이나 build context를 알지 않고, sibling `../service` 또는 `SERVICE_REPO=/path/to/service`의 공개 Taskfile target만 호출한다.
 
 ```bash
 task dev:images SERVICE_REPO=../service DEV_REGISTRY=localhost:5001 DEV_IMAGE_TAG=dev

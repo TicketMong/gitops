@@ -51,7 +51,7 @@ Taskfile이 기본 명령 표면이다.
 task dev
 ```
 
-`task dev`는 `SERVICE_REPO`의 공개 Makefile 명령을 호출해서 이미지를 만들고 push한 뒤, 같은 registry/tag를 Helm values에 넘긴다. 이어서 namespace, `platform/data`, Kong Ingress Controller/Gateway, 서비스 Helm release를 순서대로 준비한다. 기본값은 `SERVICE_REPO=../service`, `DEV_REGISTRY=localhost:5001`, `DEV_IMAGE_TAG=dev`다.
+`task dev`는 `SERVICE_REPO`의 공개 Taskfile 명령을 호출해서 이미지를 만들고 push한 뒤, 같은 registry/tag를 Helm values에 넘긴다. 이어서 namespace, `platform/data`, Kong Ingress Controller/Gateway, 서비스 Helm release를 순서대로 준비한다. 기본값은 `SERVICE_REPO=../service`, `DEV_REGISTRY=localhost:5001`, `DEV_IMAGE_TAG=dev`다.
 
 ```bash
 task dev:check
@@ -76,7 +76,7 @@ TOKEN="$(
   curl -fsS -X POST http://localhost/auth/login \
     -H 'content-type: application/json' \
     -d '{"email":"staff","password":"staff1234"}' \
-  | ruby -rjson -e 'puts JSON.parse(STDIN.read).fetch("accessToken")'
+  | sed -n 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
 )"
 
 curl -fsS http://localhost/patients -H "Authorization: Bearer ${TOKEN}"
@@ -132,7 +132,7 @@ make scenario SCENARIO=hpa SERVICE=patient
 
 `task dev`, `task dev:check`, `task dev:images`, `task dev:kong:*`, `task dev:status`, `task dev:down`은 내부적으로 `local-docker-desktop-kubeadm` values와 `platform/kong/values-local.yaml`을 사용한다. 개발자는 평소에 환경 파일명을 직접 넘기지 않아도 된다.
 
-Docker Desktop 개발 루프는 VM/kubeadm lab registry인 `10.10.10.10:5000`을 쓰지 않는다. 기본 dev registry는 Docker Desktop host에서 push 가능한 `localhost:5001`이고, kindest-node 기반 multi-node 클러스터에서는 Taskfile이 node containerd mirror를 설정해서 같은 image reference를 pull하게 한다. 이 repo는 service Dockerfile이나 build context를 직접 알지 않고, `service` repo의 `make app-images-push IMAGE_REGISTRY=<registry> IMAGE_TAG=<tag>` 표면만 호출한다.
+Docker Desktop 개발 루프는 VM/kubeadm lab registry인 `10.10.10.10:5000`을 쓰지 않는다. 기본 dev registry는 Docker Desktop host에서 push 가능한 `localhost:5001`이고, kindest-node 기반 multi-node 클러스터에서는 Taskfile이 node containerd mirror를 설정해서 같은 image reference를 pull하게 한다. 이 repo는 service Dockerfile이나 build context를 직접 알지 않고, `service` repo의 `task app-images-push IMAGE_REGISTRY=<registry> IMAGE_TAG=<tag>` 표면만 호출한다.
 
 Kong proxy는 Docker Desktop local에서 `LoadBalancer` Service로 열리며, 현재 클러스터의 `docker/desktop-cloud-provider-kind`가 `http://localhost/`로 연결한다. 별도 dashboard port-forward는 필요하지 않다.
 

@@ -163,7 +163,7 @@ service repo
 -> Kubernetes patient Deployment rollout
 ```
 
-Docker Desktop local dev에서는 개발 편의를 위해 GitOps repo의 `task dev:images`와 `task dev`가 service repo의 공개 Makefile target을 호출한다. 이 의존은 local dev 명령에만 존재하며, 운영/AWS Argo CD bootstrap은 `SERVICE_REPO`에 의존하지 않는다.
+Docker Desktop local dev에서는 개발 편의를 위해 GitOps repo의 `task dev:images`와 `task dev`가 service repo의 공개 Taskfile target을 호출한다. 이 의존은 local dev 명령에만 존재하며, 운영/AWS Argo CD bootstrap은 `SERVICE_REPO`에 의존하지 않는다.
 
 ```bash
 task dev SERVICE_REPO=../service DEV_REGISTRY=localhost:5001 DEV_IMAGE_TAG=dev
