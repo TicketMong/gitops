@@ -1,13 +1,16 @@
 app:
   name: dashboard
-  namespace: medical-dashboard
+  namespace: ticketing-dashboard
   labels:
-    medikong.io/service: dashboard
-    medikong.io/tier: frontend
+    ticketing.io/service: dashboard
+    ticketing.io/tier: frontend
 
 image:
   repository: dashboard
   tag: dev
+
+deployment:
+  replicas: 2
 
 container:
   port: 8080
@@ -23,7 +26,7 @@ ingress:
   name: dashboard
   className: kong
   annotations:
-    konghq.com/plugins: medikong-correlation-id,medikong-prometheus
+    konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
   hosts:
     - host: ""
       paths:

@@ -9,6 +9,9 @@ image:
   repository: notification-service
   tag: dev
 
+deployment:
+  replicas: 2
+
 container:
   port: 8084
   env:

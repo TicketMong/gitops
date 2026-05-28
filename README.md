@@ -75,12 +75,12 @@ Auth API:  http://localhost/auth
 TOKEN="$(
   curl -fsS -X POST http://localhost/auth/login \
     -H 'content-type: application/json' \
-    -d '{"email":"staff","password":"staff1234"}' \
+    -d '{"email":"admin@example.com","password":"admin1234"}' \
   | sed -n 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
 )"
 
-curl -fsS http://localhost/patients -H "Authorization: Bearer ${TOKEN}"
-curl -fsS http://localhost/appointments -H "Authorization: Bearer ${TOKEN}"
+curl -fsS http://localhost/concerts -H "Authorization: Bearer ${TOKEN}"
+curl -fsS http://localhost/reservations -H "Authorization: Bearer ${TOKEN}"
 ```
 
 배포 후 상태 확인과 정리는 다음처럼 한다.
@@ -113,9 +113,9 @@ Makefile은 호환 wrapper다.
 ```bash
 make validate
 make helm-lint
-make helm-template SERVICE=patient ENV=aws-prod
-make helm-template-service SERVICE=patient
-make scenario SCENARIO=hpa SERVICE=patient
+make helm-template SERVICE=concert ENV=aws-prod
+make helm-template-service SERVICE=concert
+make scenario SCENARIO=hpa SERVICE=concert
 ```
 
 ## 환경 이름
@@ -124,13 +124,14 @@ make scenario SCENARIO=hpa SERVICE=patient
 
 | 환경 | 목적 |
 | --- | --- |
-| `local-docker-desktop-kubeadm` | Docker Desktop Kubernetes에서 kubeadm 계열 구성을 검증 |
+| `dev` | Docker Desktop Kubernetes에서 쓰는 기본 로컬 개발 환경 |
+| `local-docker-desktop-kubeadm` | Docker Desktop Kubernetes에서 kubeadm 계열 구성을 검증하는 호환 환경 |
 | `local-docker-desktop-kind` | Docker Desktop runtime 위 kind-style 구성을 values로 검증 |
 | `local-vm-kubeadm` | VM 기반 kubeadm 클러스터와 registry 경로 검증 |
 | `aws-dev` | 지속 검증용 클라우드 개발 환경 |
 | `aws-prod` | 운영 목표 환경 |
 
-`task dev`, `task dev:check`, `task dev:images`, `task dev:kong:*`, `task dev:status`, `task dev:down`은 내부적으로 `local-docker-desktop-kubeadm` values와 `platform/kong/values-local.yaml`을 사용한다. 개발자는 평소에 환경 파일명을 직접 넘기지 않아도 된다.
+`task dev`, `task dev:check`, `task dev:images`, `task dev:kong:*`, `task dev:status`, `task dev:down`은 내부적으로 `dev` values와 `platform/kong/values-local.yaml`을 사용한다. 개발자는 평소에 환경 파일명을 직접 넘기지 않아도 된다. `dev`는 로컬 개발에서도 분산 동작을 확인할 수 있도록 기본 replica를 2개로 둔다.
 
 Docker Desktop 개발 루프는 VM/kubeadm lab registry인 `10.10.10.10:5000`을 쓰지 않는다. 기본 dev registry는 Docker Desktop host에서 push 가능한 `localhost:5001`이고, kindest-node 기반 multi-node 클러스터에서는 Taskfile이 node containerd mirror를 설정해서 같은 image reference를 pull하게 한다. 이 repo는 service Dockerfile이나 build context를 직접 알지 않고, `service` repo의 `task app-images-push IMAGE_REGISTRY=<registry> IMAGE_TAG=<tag>` 표면만 호출한다.
 
@@ -173,6 +174,7 @@ gitops/
   values/
     base.yaml
     env/
+      dev.yaml
       local-docker-desktop-kubeadm.yaml
       local-docker-desktop-kind.yaml
       local-vm-kubeadm.yaml

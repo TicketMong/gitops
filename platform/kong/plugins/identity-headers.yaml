@@ -1,7 +1,7 @@
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: medikong-identity-headers
+  name: ticketing-identity-headers
   annotations:
     kubernetes.io/ingress.class: kong
   labels:
@@ -46,18 +46,10 @@ config:
 
       local sub = claim_value("sub")
       local role = claim_value("role")
-      local patient_id = claim_value("patientId")
-      local doctor_id = claim_value("doctorId")
 
       if sub then
         kong.service.request.set_header("X-User-Id", tostring(sub))
       end
       if role then
         kong.service.request.set_header("X-User-Role", tostring(role))
-      end
-      if patient_id then
-        kong.service.request.set_header("X-Patient-Id", tostring(patient_id))
-      end
-      if doctor_id then
-        kong.service.request.set_header("X-Doctor-Id", tostring(doctor_id))
       end

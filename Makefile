@@ -3,15 +3,15 @@ SHELL := /bin/sh
 .DEFAULT_GOAL := help
 
 TASK ?= task
-SERVICE ?= patient
-ENV ?= aws-dev
+SERVICE ?= concert
+ENV ?= dev
 SCENARIO ?= network
 IMAGE_TAG ?=
 REGISTRY ?= 10.10.10.10:5000
 ARCHIVED_LOCAL_APPS_KUSTOMIZATION ?= archive/k8s-kustomize/overlays/local/apps/kustomization.yaml
 
 .PHONY: help validate render helm-lint helm-template helm-template-service helm-template-env scenario \
-	helm-template-patient-local helm-template-patient-aws-dev helm-template-patient-aws-prod \
+	helm-template-concert-local helm-template-concert-aws-dev helm-template-concert-aws-prod \
 	render-local-all render-aws-all update-local-image-tags apply-local-all status \
 	metallb-bootstrap metallb-verify observability-install cluster-bootstrap cluster-verify \
 	helm-bootstrap metrics-bootstrap metrics-verify registry-bootstrap registry-verify \
@@ -23,10 +23,10 @@ help:
 	@printf '  %-42s %s\n' 'make validate' 'task validate'
 	@printf '  %-42s %s\n' 'make render' 'task render'
 	@printf '  %-42s %s\n' 'make helm-lint' 'task helm:lint'
-	@printf '  %-42s %s\n' 'make helm-template SERVICE=patient ENV=aws-dev' 'task helm:template:one'
-	@printf '  %-42s %s\n' 'make helm-template-service SERVICE=patient' 'task helm:template:service'
-	@printf '  %-42s %s\n' 'make helm-template-env ENV=aws-dev' 'task helm:template:env'
-	@printf '  %-42s %s\n' 'make scenario SCENARIO=network SERVICE=patient' 'task scenario:render'
+	@printf '  %-42s %s\n' 'make helm-template SERVICE=concert ENV=dev' 'task helm:template:one'
+	@printf '  %-42s %s\n' 'make helm-template-service SERVICE=concert' 'task helm:template:service'
+	@printf '  %-42s %s\n' 'make helm-template-env ENV=dev' 'task helm:template:env'
+	@printf '  %-42s %s\n' 'make scenario SCENARIO=network SERVICE=concert' 'task scenario:render'
 	@printf '%s\n' ''
 	@printf '%s\n' 'Legacy targets are kept only as deprecated wrappers while archive/k8s-kustomize remains as reference.'
 
@@ -51,17 +51,17 @@ helm-template-env:
 scenario:
 	$(TASK) scenario:render SERVICE=$(SERVICE) SCENARIO=$(SCENARIO)
 
-helm-template-patient-local:
-	@printf '%s\n' 'Deprecated: use make helm-template SERVICE=patient ENV=local-vm-kubeadm' >&2
-	$(TASK) helm:template:one SERVICE=patient ENV=local-vm-kubeadm
+helm-template-concert-local:
+	@printf '%s\n' 'Deprecated: use make helm-template SERVICE=concert ENV=local-vm-kubeadm' >&2
+	$(TASK) helm:template:one SERVICE=concert ENV=local-vm-kubeadm
 
-helm-template-patient-aws-dev:
-	@printf '%s\n' 'Deprecated: use make helm-template SERVICE=patient ENV=aws-dev' >&2
-	$(TASK) helm:template:one SERVICE=patient ENV=aws-dev
+helm-template-concert-aws-dev:
+	@printf '%s\n' 'Deprecated: use make helm-template SERVICE=concert ENV=aws-dev' >&2
+	$(TASK) helm:template:one SERVICE=concert ENV=aws-dev
 
-helm-template-patient-aws-prod:
-	@printf '%s\n' 'Deprecated: use make helm-template SERVICE=patient ENV=aws-prod' >&2
-	$(TASK) helm:template:one SERVICE=patient ENV=aws-prod
+helm-template-concert-aws-prod:
+	@printf '%s\n' 'Deprecated: use make helm-template SERVICE=concert ENV=aws-prod' >&2
+	$(TASK) helm:template:one SERVICE=concert ENV=aws-prod
 
 render-local-all:
 	@printf '%s\n' 'Deprecated: k8s Kustomize is archived under archive/k8s-kustomize and is no longer an operating path.' >&2

@@ -1,48 +1,55 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: medical-auth
+  name: ticketing-auth
   labels:
     app.kubernetes.io/part-of: medikong
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: medical-messaging
+  name: ticketing-concert
   labels:
     app.kubernetes.io/part-of: medikong
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: medical-patient
+  name: ticketing-reservation
   labels:
     app.kubernetes.io/part-of: medikong
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: medical-appointment
+  name: ticketing-payment
   labels:
     app.kubernetes.io/part-of: medikong
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: medical-prescription
+  name: ticketing-ticket
   labels:
     app.kubernetes.io/part-of: medikong
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: medical-notification
+  name: ticketing-notification
   labels:
     app.kubernetes.io/part-of: medikong
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: medical-dashboard
+  name: ticketing-dashboard
+  labels:
+    app.kubernetes.io/part-of: medikong
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ticketing-messaging
   labels:
     app.kubernetes.io/part-of: medikong

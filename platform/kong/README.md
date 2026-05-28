@@ -29,14 +29,16 @@ task dev:kong:status
 | --- | --- |
 | Dashboard | `http://localhost/` |
 | Auth API | `http://localhost/auth` |
-| Patient API | `http://localhost/patients` |
-| Appointment API | `http://localhost/appointments` |
-| Prescription API | `http://localhost/prescriptions` |
+| Concert API | `http://localhost/concerts` |
+| Performance seats API | `http://localhost/performances` |
+| Reservation API | `http://localhost/reservations` |
+| Payment API | `http://localhost/payments` |
+| Ticket API | `http://localhost/tickets` |
 | Notification API | `http://localhost/notifications` |
 
 ## Smoke
 
-Auth와 dashboard route는 JWT plugin을 붙이지 않는다. 나머지 API route는 `medikong-jwt`와 `medikong-identity-headers`를 통해 demo token을 검증하고 `X-User-*` header를 upstream service에 전달한다.
+Auth와 dashboard route는 JWT plugin을 붙이지 않는다. 나머지 API route는 `ticketing-jwt`와 `ticketing-identity-headers`를 통해 demo token을 검증하고 `X-User-*` header를 upstream service에 전달한다.
 
 ```bash
 curl -fsS http://localhost/auth/demo-accounts
@@ -44,13 +46,14 @@ curl -fsS http://localhost/auth/demo-accounts
 TOKEN="$(
   curl -fsS -X POST http://localhost/auth/login \
     -H 'content-type: application/json' \
-    -d '{"email":"staff","password":"staff1234"}' \
+    -d '{"email":"admin@example.com","password":"admin1234"}' \
   | ruby -rjson -e 'puts JSON.parse(STDIN.read).fetch("accessToken")'
 )"
 
-curl -fsS http://localhost/patients -H "Authorization: Bearer ${TOKEN}"
-curl -fsS http://localhost/appointments -H "Authorization: Bearer ${TOKEN}"
-curl -fsS http://localhost/prescriptions -H "Authorization: Bearer ${TOKEN}"
+curl -fsS http://localhost/concerts -H "Authorization: Bearer ${TOKEN}"
+curl -fsS http://localhost/reservations -H "Authorization: Bearer ${TOKEN}"
+curl -fsS http://localhost/payments -H "Authorization: Bearer ${TOKEN}"
+curl -fsS http://localhost/tickets -H "Authorization: Bearer ${TOKEN}"
 curl -fsS http://localhost/notifications -H "Authorization: Bearer ${TOKEN}"
 ```
 

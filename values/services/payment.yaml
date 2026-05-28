@@ -1,12 +1,12 @@
 app:
-  name: auth-service
-  namespace: ticketing-auth
+  name: payment-service
+  namespace: ticketing-payment
   labels:
-    ticketing.io/service: auth
+    ticketing.io/service: payment
     ticketing.io/tier: api
 
 image:
-  repository: auth-service
+  repository: payment-service
   tag: dev
 
 deployment:
@@ -16,11 +16,7 @@ container:
   port: 8080
   env:
     - name: DATABASE_URL
-      value: postgresql+psycopg://user:password@auth-db:5432/auth_db
-    - name: AUTH_TOKEN_TTL_SECONDS
-      value: "900"
-    - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
-      value: "604800"
+      value: postgresql+psycopg://user:password@payment-db:5432/payment_db
     - name: JWT_SECRET
       value: ticketing-dev-secret
     - name: JWT_ISSUER
@@ -32,14 +28,16 @@ service:
 
 ingress:
   enabled: true
-  name: auth-api
+  name: payment-api
   className: kong
   annotations:
-    konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+    konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-rate-limit-payments,ticketing-correlation-id,ticketing-prometheus
   hosts:
     - host: ""
       paths:
-        - path: /auth
+        - path: /payments
+          pathType: Prefix
+        - path: /provider/settlements
           pathType: Prefix
 
 networkPolicy:

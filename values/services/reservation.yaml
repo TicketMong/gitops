@@ -1,0 +1,48 @@
+app:
+  name: reservation-service
+  namespace: ticketing-reservation
+  labels:
+    ticketing.io/service: reservation
+    ticketing.io/tier: api
+
+image:
+  repository: reservation-service
+  tag: dev
+
+deployment:
+  replicas: 2
+
+container:
+  port: 8083
+  env:
+    - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@reservation-db:5432/reservation_db
+
+service:
+  port: 8083
+  targetPort: http
+
+ingress:
+  enabled: true
+  name: reservation-api
+  className: kong
+  annotations:
+    konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-rate-limit-reservations,ticketing-correlation-id,ticketing-prometheus
+  hosts:
+    - host: ""
+      paths:
+        - path: /reservations
+          pathType: Prefix
+
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8083

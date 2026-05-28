@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: auth-db
-  namespace: medical-auth
+  namespace: ticketing-auth
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: auth-db
@@ -19,7 +19,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: auth-db
-  namespace: medical-auth
+  namespace: ticketing-auth
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: auth-db
@@ -91,15 +91,15 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: patient-db
-  namespace: medical-patient
+  name: concert-db
+  namespace: ticketing-concert
   labels:
     app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: patient-db
+    app.kubernetes.io/name: concert-db
 spec:
   type: ClusterIP
   selector:
-    app.kubernetes.io/name: patient-db
+    app.kubernetes.io/name: concert-db
   ports:
     - name: postgres
       port: 5432
@@ -108,22 +108,22 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: patient-db
-  namespace: medical-patient
+  name: concert-db
+  namespace: ticketing-concert
   labels:
     app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: patient-db
+    app.kubernetes.io/name: concert-db
 spec:
-  serviceName: patient-db
+  serviceName: concert-db
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: patient-db
+      app.kubernetes.io/name: concert-db
   template:
     metadata:
       labels:
         app.kubernetes.io/part-of: medikong
-        app.kubernetes.io/name: patient-db
+        app.kubernetes.io/name: concert-db
     spec:
       containers:
         - name: postgres
@@ -149,7 +149,7 @@ spec:
                 - -U
                 - user
                 - -d
-                - patient_db
+                - concert_db
             initialDelaySeconds: 5
             periodSeconds: 5
           env:
@@ -158,7 +158,7 @@ spec:
             - name: POSTGRES_PASSWORD
               value: password
             - name: POSTGRES_DB
-              value: patient_db
+              value: concert_db
           resources:
             requests:
               cpu: 50m
@@ -181,15 +181,15 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: appointment-db
-  namespace: medical-appointment
+  name: reservation-db
+  namespace: ticketing-reservation
   labels:
     app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: appointment-db
+    app.kubernetes.io/name: reservation-db
 spec:
   type: ClusterIP
   selector:
-    app.kubernetes.io/name: appointment-db
+    app.kubernetes.io/name: reservation-db
   ports:
     - name: postgres
       port: 5432
@@ -198,22 +198,22 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: appointment-db
-  namespace: medical-appointment
+  name: reservation-db
+  namespace: ticketing-reservation
   labels:
     app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: appointment-db
+    app.kubernetes.io/name: reservation-db
 spec:
-  serviceName: appointment-db
+  serviceName: reservation-db
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: appointment-db
+      app.kubernetes.io/name: reservation-db
   template:
     metadata:
       labels:
         app.kubernetes.io/part-of: medikong
-        app.kubernetes.io/name: appointment-db
+        app.kubernetes.io/name: reservation-db
     spec:
       containers:
         - name: postgres
@@ -239,7 +239,7 @@ spec:
                 - -U
                 - user
                 - -d
-                - appointment_db
+                - reservation_db
             initialDelaySeconds: 5
             periodSeconds: 5
           env:
@@ -248,7 +248,7 @@ spec:
             - name: POSTGRES_PASSWORD
               value: password
             - name: POSTGRES_DB
-              value: appointment_db
+              value: reservation_db
           resources:
             requests:
               cpu: 50m
@@ -271,15 +271,15 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: prescription-db
-  namespace: medical-prescription
+  name: payment-db
+  namespace: ticketing-payment
   labels:
     app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: prescription-db
+    app.kubernetes.io/name: payment-db
 spec:
   type: ClusterIP
   selector:
-    app.kubernetes.io/name: prescription-db
+    app.kubernetes.io/name: payment-db
   ports:
     - name: postgres
       port: 5432
@@ -288,22 +288,22 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: prescription-db
-  namespace: medical-prescription
+  name: payment-db
+  namespace: ticketing-payment
   labels:
     app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: prescription-db
+    app.kubernetes.io/name: payment-db
 spec:
-  serviceName: prescription-db
+  serviceName: payment-db
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: prescription-db
+      app.kubernetes.io/name: payment-db
   template:
     metadata:
       labels:
         app.kubernetes.io/part-of: medikong
-        app.kubernetes.io/name: prescription-db
+        app.kubernetes.io/name: payment-db
     spec:
       containers:
         - name: postgres
@@ -329,7 +329,7 @@ spec:
                 - -U
                 - user
                 - -d
-                - prescription_db
+                - payment_db
             initialDelaySeconds: 5
             periodSeconds: 5
           env:
@@ -338,7 +338,97 @@ spec:
             - name: POSTGRES_PASSWORD
               value: password
             - name: POSTGRES_DB
-              value: prescription_db
+              value: payment_db
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              memory: 192Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket-db
+  namespace: ticketing-ticket
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: ticket-db
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ticket-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ticket-db
+  namespace: ticketing-ticket
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: ticket-db
+spec:
+  serviceName: ticket-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ticket-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: medikong
+        app.kubernetes.io/name: ticket-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15
+          args:
+            - -c
+            - shared_buffers=16MB
+            - -c
+            - effective_cache_size=64MB
+            - -c
+            - work_mem=1MB
+            - -c
+            - maintenance_work_mem=16MB
+            - -c
+            - max_connections=20
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - user
+                - -d
+                - ticket_db
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          env:
+            - name: POSTGRES_USER
+              value: user
+            - name: POSTGRES_PASSWORD
+              value: password
+            - name: POSTGRES_DB
+              value: ticket_db
           resources:
             requests:
               cpu: 50m

@@ -1,0 +1,50 @@
+app:
+  name: concert-service
+  namespace: ticketing-concert
+  labels:
+    ticketing.io/service: concert
+    ticketing.io/tier: api
+
+image:
+  repository: concert-service
+  tag: dev
+
+deployment:
+  replicas: 2
+
+container:
+  port: 8082
+  env:
+    - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@concert-db:5432/concert_db
+
+service:
+  port: 8082
+  targetPort: http
+
+ingress:
+  enabled: true
+  name: concert-api
+  className: kong
+  annotations:
+    konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-rate-limit-concerts,ticketing-correlation-id,ticketing-prometheus
+  hosts:
+    - host: ""
+      paths:
+        - path: /concerts
+          pathType: Prefix
+        - path: /performances
+          pathType: Prefix
+
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8082

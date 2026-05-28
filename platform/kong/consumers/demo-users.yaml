@@ -1,71 +1,23 @@
 apiVersion: configuration.konghq.com/v1
 kind: KongConsumer
 metadata:
-  name: staff-user
+  name: auth-service-user
   annotations:
     kubernetes.io/ingress.class: kong
   labels:
     app.kubernetes.io/part-of: medikong
-username: staff-user
+username: auth-service-user
 credentials:
-  - staff-jwt
+  - auth-service-jwt
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: staff-jwt
+  name: auth-service-jwt
   labels:
     konghq.com/credential: jwt
     app.kubernetes.io/part-of: medikong
 stringData:
-  key: staff
-  secret: staff-secret
-  algorithm: HS256
----
-apiVersion: configuration.konghq.com/v1
-kind: KongConsumer
-metadata:
-  name: patient-user
-  annotations:
-    kubernetes.io/ingress.class: kong
-  labels:
-    app.kubernetes.io/part-of: medikong
-username: patient-user
-credentials:
-  - patient-jwt
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: patient-jwt
-  labels:
-    konghq.com/credential: jwt
-    app.kubernetes.io/part-of: medikong
-stringData:
-  key: patient
-  secret: patient-secret
-  algorithm: HS256
----
-apiVersion: configuration.konghq.com/v1
-kind: KongConsumer
-metadata:
-  name: doctor-user
-  annotations:
-    kubernetes.io/ingress.class: kong
-  labels:
-    app.kubernetes.io/part-of: medikong
-username: doctor-user
-credentials:
-  - doctor-jwt
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: doctor-jwt
-  labels:
-    konghq.com/credential: jwt
-    app.kubernetes.io/part-of: medikong
-stringData:
-  key: doctor
-  secret: doctor-secret
+  key: auth-service
+  secret: ticketing-dev-secret
   algorithm: HS256

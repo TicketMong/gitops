@@ -5,9 +5,9 @@ vars:
   KUBECTL: '{{default "kubectl" .KUBECTL}}'
   SERVICE_CHART: '{{default "charts/medikong-service" .SERVICE_CHART}}'
   VALUES_BASE: '{{default "values/base.yaml" .VALUES_BASE}}'
-  ENVIRONMENTS: local-docker-desktop-kubeadm local-docker-desktop-kind local-vm-kubeadm aws-dev aws-prod
+  ENVIRONMENTS: dev local-docker-desktop-kubeadm local-docker-desktop-kind local-vm-kubeadm aws-dev aws-prod
   AWS_SCENARIOS: network hpa storage release
-  LOCAL_DOCKER_DESKTOP_ENV: local-docker-desktop-kubeadm
+  LOCAL_DOCKER_DESKTOP_ENV: dev
   LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX: local-docker-desktop
   SERVICE_REPO: '{{default "../service" .SERVICE_REPO}}'
   DEV_REGISTRY: '{{default "localhost:5001" .DEV_REGISTRY}}'
@@ -232,21 +232,22 @@ tasks:
     cmds:
       - |
         set -eu
-        {{.KUBECTL}} delete job/kafka-create-topics -n medical-messaging --ignore-not-found=true
+        {{.KUBECTL}} delete job/kafka-create-topics -n ticketing-messaging --ignore-not-found=true
         {{.KUBECTL}} apply -k platform/data
         for item in \
-          medical-auth/auth-db \
-          medical-patient/patient-db \
-          medical-appointment/appointment-db \
-          medical-prescription/prescription-db \
-          medical-notification/notification-db \
-          medical-messaging/kafka
+          ticketing-auth/auth-db \
+          ticketing-concert/concert-db \
+          ticketing-reservation/reservation-db \
+          ticketing-payment/payment-db \
+          ticketing-ticket/ticket-db \
+          ticketing-notification/notification-db \
+          ticketing-messaging/kafka
         do
           namespace="${item%%/*}"
           statefulset="${item##*/}"
           {{.KUBECTL}} rollout status "statefulset/${statefulset}" -n "${namespace}" --timeout=240s
         done
-        {{.KUBECTL}} wait --for=condition=complete job/kafka-create-topics -n medical-messaging --timeout=180s
+        {{.KUBECTL}} wait --for=condition=complete job/kafka-create-topics -n ticketing-messaging --timeout=180s
 
   kong:repo:
     cmds:
@@ -302,7 +303,7 @@ tasks:
       - '{{.KUBECTL}} get ingressclass kong'
       - '{{.KUBECTL}} get pods,svc -n {{.KONG_NAMESPACE}}'
       - '{{.KUBECTL}} get kongclusterplugins.configuration.konghq.com'
-      - '{{.KUBECTL}} get kongconsumers.configuration.konghq.com -n medical-auth'
+      - '{{.KUBECTL}} get kongconsumers.configuration.konghq.com -n ticketing-auth'
 
   dev:kong:down:
     desc: Docker Desktop dev Kong 리소스를 정리합니다.
@@ -431,7 +432,7 @@ tasks:
         set -eu
         service='{{default "" .SERVICE}}'
         if [ -z "${service}" ]; then
-          printf '%s\n' 'SERVICE is required, for example: task helm:template:service SERVICE=patient' >&2
+          printf '%s\n' 'SERVICE is required, for example: task helm:template:service SERVICE=concert' >&2
           exit 2
         fi
         service_file="values/services/${service}.yaml"
@@ -468,7 +469,7 @@ tasks:
         service='{{default "" .SERVICE}}'
         env='{{default "" .ENV}}'
         if [ -z "${service}" ] || [ -z "${env}" ]; then
-          printf '%s\n' 'SERVICE and ENV are required, for example: task helm:template:one SERVICE=patient ENV=aws-dev' >&2
+          printf '%s\n' 'SERVICE and ENV are required, for example: task helm:template:one SERVICE=concert ENV=aws-dev' >&2
           exit 2
         fi
         service_file="values/services/${service}.yaml"
@@ -513,7 +514,7 @@ tasks:
         service='{{default "" .SERVICE}}'
         scenario='{{default "" .SCENARIO}}'
         if [ -z "${scenario}" ]; then
-          printf '%s\n' 'SCENARIO is required, for example: task scenario:render SCENARIO=network SERVICE=patient' >&2
+          printf '%s\n' 'SCENARIO is required, for example: task scenario:render SCENARIO=network SERVICE=concert' >&2
           exit 2
         fi
         if [ ! -f "values/scenarios/aws/${scenario}.yaml" ]; then

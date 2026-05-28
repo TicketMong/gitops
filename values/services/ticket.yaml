@@ -9,6 +9,9 @@ image:
   repository: ticket-service
   tag: dev
 
+deployment:
+  replicas: 2
+
 container:
   port: 8085
   env:
@@ -27,15 +30,9 @@ container:
     - name: S3_BUCKET
       value: ticketing-tickets
     - name: AWS_ACCESS_KEY_ID
-      valueFrom:
-        secretKeyRef:
-          name: ticket-service-secret
-          key: aws-access-key-id
+      value: ""
     - name: AWS_SECRET_ACCESS_KEY
-      valueFrom:
-        secretKeyRef:
-          name: ticket-service-secret
-          key: aws-secret-access-key
+      value: ""
 
 service:
   port: 8085
