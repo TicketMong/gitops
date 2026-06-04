@@ -20,7 +20,7 @@ on:
         description: ECR repository가 없으면 생성
         required: true
         type: boolean
-        default: false
+        default: true
       force:
         description: ECR에 같은 tag가 있어도 다시 push
         required: true
