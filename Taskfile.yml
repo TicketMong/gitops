@@ -548,6 +548,48 @@ tasks:
     cmds:
       - '{{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}} >/dev/null'
 
+  dev:istio:
+    desc: 현재 Kubernetes 컨텍스트에 Istio platform ArgoCD Application을 등록하고 상태 확인 명령을 안내합니다.
+    cmds:
+      - task: istio:render
+      - '{{.KUBECTL}} apply -k {{.ISTIO_PLATFORM}}'
+      - |
+        set -eu
+        printf '%s\n' 'Istio platform Applications were applied.'
+        printf '%s\n' 'Next checks:'
+        printf '%s\n' '  kubectl get applications -n argocd istio-base istiod kiali'
+        printf '%s\n' '  task mesh-check'
+
+  mesh-check:
+    desc: Istio control plane, Kiali, concert-service sidecar injection 상태를 확인합니다.
+    cmds:
+      - |
+        set -eu
+        {{.KUBECTL}} get namespace istio-system
+        {{.KUBECTL}} get applications -n argocd istio-base istiod kiali
+        {{.KUBECTL}} get pods -n istio-system
+        {{.KUBECTL}} get crd virtualservices.networking.istio.io destinationrules.networking.istio.io
+        {{.KUBECTL}} get svc -n istio-system kiali
+        inject="$({{.KUBECTL}} get deployment concert-service -n ticketing-concert -o jsonpath='{.spec.template.metadata.annotations.sidecar\.istio\.io/inject}' 2>/dev/null || true)"
+        if [ "${inject}" != "true" ]; then
+          printf 'concert-service sidecar injection annotation is not enabled. current=%s\n' "${inject:-<empty>}" >&2
+          exit 1
+        fi
+        pod="$({{.KUBECTL}} get pods -n ticketing-concert -l app=concert-service -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+        if [ -z "${pod}" ]; then
+          printf '%s\n' 'concert-service pod was not found.' >&2
+          exit 1
+        fi
+        containers="$({{.KUBECTL}} get pod "${pod}" -n ticketing-concert -o jsonpath='{.spec.containers[*].name}')"
+        printf 'concert-service pod containers: %s\n' "${containers}"
+        case " ${containers} " in
+          *" istio-proxy "*) ;;
+          *)
+            printf '%s\n' 'concert-service pod does not contain istio-proxy yet. Restart after istiod is healthy.' >&2
+            exit 1
+            ;;
+        esac
+
   dev:kong:check:
     internal: true
     desc: Docker Desktop dev용 Kong chart values와 Kong shared resource 렌더링을 검증합니다.
