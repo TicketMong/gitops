@@ -58,6 +58,10 @@ deployment:
     sidecar.istio.io/inject: "true"
   podAnnotations:
     sidecar.istio.io/inject: "true"
+    sidecar.istio.io/proxyCPU: 25m
+    sidecar.istio.io/proxyMemory: 64Mi
+    sidecar.istio.io/proxyCPULimit: 200m
+    sidecar.istio.io/proxyMemoryLimit: 256Mi
 ```
 
 Istio's mutating webhook uses Kubernetes labels for object selector matching,
@@ -66,6 +70,11 @@ kept as an explicit injection intent after the webhook is invoked. These fields
 only affect newly created Pods. If `concert-service` was already running before
 `istiod` became ready, restart the workload after the Istio control plane is
 healthy:
+
+The proxy resource annotations are intentionally low for the AWS dev cluster.
+They prevent rollout stalls caused by Istio's default proxy CPU request in a
+small test cluster. Production values must be recalculated from observed Envoy
+CPU and memory metrics.
 
 ```bash
 kubectl rollout restart deployment/concert-service -n ticketing-concert
@@ -101,6 +110,10 @@ deployment:
     sidecar.istio.io/inject: "true"
   podAnnotations:
     sidecar.istio.io/inject: "true"
+    sidecar.istio.io/proxyCPU: 25m
+    sidecar.istio.io/proxyMemory: 64Mi
+    sidecar.istio.io/proxyCPULimit: 200m
+    sidecar.istio.io/proxyMemoryLimit: 256Mi
 ```
 
 Excluded for this rollout:

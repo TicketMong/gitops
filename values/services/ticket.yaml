@@ -15,6 +15,10 @@ deployment:
     sidecar.istio.io/inject: "true"
   podAnnotations:
     sidecar.istio.io/inject: "true"
+    sidecar.istio.io/proxyCPU: 25m
+    sidecar.istio.io/proxyMemory: 64Mi
+    sidecar.istio.io/proxyCPULimit: 200m
+    sidecar.istio.io/proxyMemoryLimit: 256Mi
 
 container:
   port: 8085
