@@ -49,6 +49,12 @@ container:
     initialDelaySeconds: 15
     periodSeconds: 20
 
+observability:
+  tracing:
+    enabled: false
+    otlpEndpoint: ""
+    excludedUrls: /health,/healthz,/readyz,/metrics
+
 podSecurityContext: {}
 securityContext:
   allowPrivilegeEscalation: false

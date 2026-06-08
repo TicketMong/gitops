@@ -56,6 +56,19 @@
         "livenessProbe": { "type": ["object", "null"] }
       }
     },
+    "observability": {
+      "type": "object",
+      "properties": {
+        "tracing": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "otlpEndpoint": { "type": "string" },
+            "excludedUrls": { "type": "string" }
+          }
+        }
+      }
+    },
     "podSecurityContext": { "type": "object" },
     "securityContext": { "type": "object" },
     "nodeSelector": { "type": "object" },
