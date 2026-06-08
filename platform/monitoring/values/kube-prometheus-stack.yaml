@@ -84,6 +84,7 @@ grafana:
   persistence:
     enabled: true
     type: pvc
+    storageClassName: medikong-aws-gp3
     size: 5Gi
   resources:
     requests:
@@ -160,6 +161,7 @@ prometheus:
     storageSpec:
       volumeClaimTemplate:
         spec:
+          storageClassName: medikong-aws-gp3
           accessModes:
             - ReadWriteOnce
           resources:

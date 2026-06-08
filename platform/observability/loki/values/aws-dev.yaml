@@ -55,6 +55,7 @@ singleBinary:
   replicas: 1
   persistence:
     enabled: true
+    storageClass: medikong-aws-gp3
     size: 10Gi
   resources:
     requests:
