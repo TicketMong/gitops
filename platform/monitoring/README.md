@@ -13,12 +13,14 @@
 ## Sync 순서
 
 1. Argo CD root Application이 `argo/applications/aws-dev/platform`과 `argo/applications/aws-dev/services`를 함께 읽는다.
-2. `monitoring-aws-dev` Application은 sync wave `-20`으로 먼저 생성된다.
-3. `platform/monitoring` Kustomize source가 `monitoring` namespace를 만든다.
-4. `kube-prometheus-stack` Helm source가 Prometheus Operator CRD와 chart 리소스를 적용한다.
-5. 서비스 Application이 만든 `ServiceMonitor`는 `release: kube-prometheus-stack` label로 Prometheus에 선택된다.
-6. Istio mesh용 `PodMonitor`는 `monitoring` namespace에서 만들어지고 `release: kube-prometheus-stack` label로 Prometheus에 선택된다.
-7. Tempo/Loki backend는 `platform/observability` Application들이 만든 service DNS로 연결된다.
+2. `aws-ebs-csi-driver-aws-dev` Application은 sync wave `-31`로 EBS CSI driver를 먼저 설치한다.
+3. `storage-aws-dev` Application은 sync wave `-30`으로 AWS EBS CSI `gp3` StorageClass를 생성한다.
+4. `monitoring-aws-dev` Application은 sync wave `-20`으로 먼저 생성된다.
+5. `platform/monitoring` Kustomize source가 `monitoring` namespace를 만든다.
+6. `kube-prometheus-stack` Helm source가 Prometheus Operator CRD와 chart 리소스를 적용한다.
+7. 서비스 Application이 만든 `ServiceMonitor`는 `release: kube-prometheus-stack` label로 Prometheus에 선택된다.
+8. Istio mesh용 `PodMonitor`는 `monitoring` namespace에서 만들어지고 `release: kube-prometheus-stack` label로 Prometheus에 선택된다.
+9. Tempo/Loki backend는 `platform/observability` Application들이 만든 service DNS로 연결된다.
 
 ## Istio mesh monitoring
 
@@ -64,6 +66,10 @@ Grafana admin 계정은 values에 평문으로 넣지 않는다. 배포 전 `mon
 name: grafana-admin-credentials
 keys: admin-user, admin-password
 ```
+
+## Storage
+
+aws-dev의 Grafana와 Prometheus PVC는 `medikong-aws-gp3` StorageClass를 명시한다. EBS CSI driver는 `aws-ebs-csi-driver-aws-dev` Application이 설치하고, StorageClass는 `platform/storage`에서 관리한다.
 
 ## 기존 reference 경로
 

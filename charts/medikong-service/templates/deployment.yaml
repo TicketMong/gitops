@@ -65,7 +65,18 @@ spec:
             - name: http
               containerPort: {{ .Values.container.port }}
               protocol: TCP
-{{- with .Values.container.env }}
+{{- $observabilityEnv := list }}
+{{- if .Values.observability.tracing.enabled }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "OTEL_TRACES_EXPORTER" "value" "otlp") }}
+{{- with .Values.observability.tracing.otlpEndpoint }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "OTEL_EXPORTER_OTLP_ENDPOINT" "value" .) }}
+{{- end }}
+{{- with .Values.observability.tracing.excludedUrls }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "OTEL_PYTHON_FASTAPI_EXCLUDED_URLS" "value" .) }}
+{{- end }}
+{{- end }}
+{{- $containerEnv := concat $observabilityEnv .Values.container.env }}
+{{- with $containerEnv }}
           env:
 {{ toYaml . | nindent 12 }}
 {{- end }}

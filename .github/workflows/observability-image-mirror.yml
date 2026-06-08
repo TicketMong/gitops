@@ -1,16 +1,16 @@
 name: Observability Image Mirror
 
-# aws-dev values는 Tempo/Loki 이미지를 ECR 경로로 바라본다.
+# aws-dev values는 Tempo/Loki/Collector 이미지를 ECR 경로로 바라본다.
 # 이 workflow는 Argo CD가 sync하기 전에 외부 이미지를 ECR로 복사해 둔다.
-# 미러링 대상은 각 컴포넌트 values/<환경>.yaml의 imageMirror.images에서 관리한다.
+# 미러링 대상은 각 컴포넌트 values/<환경>.yaml 또는 image-mirror/<환경>.yaml의 imageMirror.images에서 관리한다.
 on:
   workflow_dispatch:
     inputs:
       enabled:
-        description: 실제 미러링 실행 여부. 계정/OIDC 준비 전에는 false 유지
+        description: 실제 미러링 실행 여부. 점검 때만 false로 바꿈
         required: true
         type: boolean
-        default: false
+        default: true
       environment:
         description: 미러링 기준 환경명
         required: true
@@ -25,7 +25,7 @@ on:
         description: ECR repository가 없으면 생성
         required: true
         type: boolean
-        default: false
+        default: true
       force:
         description: ECR에 같은 tag가 있어도 다시 push
         required: true
@@ -59,8 +59,8 @@ jobs:
         run: |
           {
             printf '### 관측성 이미지 미러링\n\n'
-            printf '%s\n' '현재 workflow는 커밋되어 있지만 기본값으로 비활성화되어 있습니다.'
-            printf '%s\n' 'AWS OIDC Role, ECR repository, GitHub variable 준비가 끝난 뒤 workflow_dispatch의 enabled 값을 true로 바꿔 실행하세요.'
+            printf '%s\n' 'workflow_dispatch의 enabled 입력값이 false라서 미러링을 실행하지 않았습니다.'
+            printf '%s\n' '일반 실행은 enabled=true 기본값을 사용하세요.'
           } >> "${GITHUB_STEP_SUMMARY}"
 
   mirror:
@@ -113,9 +113,16 @@ jobs:
           set -euo pipefail
 
           values_glob="platform/observability/*/values/${MIRROR_ENVIRONMENT}.yaml"
+          mirror_glob="platform/observability/*/image-mirror/${MIRROR_ENVIRONMENT}.yaml"
 
-          if ! compgen -G "${values_glob}" >/dev/null; then
-            printf '환경에 맞는 관측성 values 파일을 찾을 수 없습니다: %s\n' "${values_glob}" >&2
+          # 일부 Helm chart는 values schema가 엄격해서 imageMirror 같은 workflow 전용 key를 허용하지 않는다.
+          # 그런 컴포넌트는 배포 values를 순수 chart values로 유지하고 image-mirror/<환경>.yaml에 미러링 기준만 둔다.
+          shopt -s nullglob
+          mirror_files=( ${values_glob} ${mirror_glob} )
+          shopt -u nullglob
+
+          if [ "${#mirror_files[@]}" -eq 0 ]; then
+            printf '환경에 맞는 관측성 이미지 미러링 기준 파일을 찾을 수 없습니다: %s 또는 %s\n' "${values_glob}" "${mirror_glob}" >&2
             exit 2
           fi
 
@@ -140,7 +147,7 @@ jobs:
                   ].join("\t")
                 end
               end
-            ' "${REQUESTED_IMAGE}" ${values_glob}
+            ' "${REQUESTED_IMAGE}" "${mirror_files[@]}"
           )"
 
           if [ -z "${selected_images}" ]; then
