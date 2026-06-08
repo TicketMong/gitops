@@ -21,6 +21,11 @@ on:
         required: true
         type: string
         default: all
+      platforms:
+        description: "미러링할 플랫폼 목록. 예: linux/arm64 또는 linux/arm64,linux/amd64"
+        required: true
+        type: string
+        default: linux/arm64
       create_repositories:
         description: ECR repository가 없으면 생성
         required: true
@@ -106,6 +111,7 @@ jobs:
         env:
           MIRROR_ENVIRONMENT: ${{ inputs.environment }}
           REQUESTED_IMAGE: ${{ inputs.image }}
+          MIRROR_PLATFORMS: ${{ inputs.platforms }}
           CREATE_REPOSITORIES: ${{ inputs.create_repositories }}
           FORCE_PUSH: ${{ inputs.force }}
           AWS_REGION: ${{ env.AWS_REGION }}
@@ -155,6 +161,38 @@ jobs:
             exit 2
           fi
 
+          normalize_platforms() {
+            local raw_platforms="$1"
+            local normalized=""
+            local platform
+
+            IFS=',' read -r -a platform_items <<<"${raw_platforms}"
+            for platform in "${platform_items[@]}"; do
+              platform="$(printf '%s' "${platform}" | xargs)"
+              if [ -z "${platform}" ]; then
+                continue
+              fi
+              case "${platform}" in
+                */*) ;;
+                *)
+                  printf '지원하지 않는 platform 형식입니다: %s\n' "${platform}" >&2
+                  printf '%s\n' '예상 형식: linux/arm64 또는 linux/amd64' >&2
+                  exit 2
+                  ;;
+              esac
+              normalized="${normalized}${normalized:+ }${platform}"
+            done
+
+            if [ -z "${normalized}" ]; then
+              printf '%s\n' '미러링할 platform이 비어 있습니다.' >&2
+              exit 2
+            fi
+
+            printf '%s\n' "${normalized}"
+          }
+
+          mirror_platforms="$(normalize_platforms "${MIRROR_PLATFORMS}")"
+
           mirror_one() {
             local target_registry="$1"
             local name="$2"
@@ -164,6 +202,8 @@ jobs:
             local target_ref="${target_registry}/${target_repo}:${target_tag}"
             local ecr_registry_id
             local ecr_region
+            local platform
+            local platform_args=()
 
             ecr_registry_id="$(printf '%s' "${target_registry}" | cut -d. -f1)"
             ecr_region="$(printf '%s' "${target_registry}" | sed -n 's/^[^.]*\.dkr\.ecr\.\([^.]*\)\.amazonaws\.com$/\1/p')"
@@ -192,36 +232,61 @@ jobs:
               fi
             fi
 
-            if [ "${FORCE_PUSH}" != "true" ] && docker manifest inspect "${target_ref}" >/dev/null 2>&1; then
+            target_has_platforms() {
+              local raw_manifest
+              if ! raw_manifest="$(docker buildx imagetools inspect --raw "${target_ref}" 2>/dev/null)"; then
+                return 1
+              fi
+
+              ruby -rjson -e '
+                doc = JSON.parse(STDIN.read)
+                wanted = ARGV
+                found = []
+                if doc["manifests"]
+                  doc["manifests"].each do |manifest|
+                    platform = manifest["platform"] || {}
+                    found << [platform["os"], platform["architecture"], platform["variant"]].compact.join("/")
+                  end
+                else
+                  found << [doc["os"], doc["architecture"], doc["variant"]].compact.join("/")
+                end
+                missing = wanted.reject do |want|
+                  found.any? { |have| have == want || have.start_with?(want + "/") }
+                end
+                exit(missing.empty? ? 0 : 1)
+              ' ${mirror_platforms} <<<"${raw_manifest}"
+            }
+
+            if [ "${FORCE_PUSH}" != "true" ] && target_has_platforms; then
               printf '건너뜀: %s 이미 존재함: %s\n' "${name}" "${target_ref}"
               {
                 printf '### 관측성 이미지 미러링\n\n'
                 printf -- '- 이미지: `%s`\n' "${name}"
                 printf -- '- 원본: `%s`\n' "${source_ref}"
                 printf -- '- 대상: `%s`\n' "${target_ref}"
-                printf -- '- 결과: `이미 같은 tag가 있어서 건너뜀`\n\n'
+                printf -- '- 플랫폼: `%s`\n' "${mirror_platforms}"
+                printf -- '- 결과: `요청한 platform이 이미 있어서 건너뜀`\n\n'
               } >> "${GITHUB_STEP_SUMMARY}"
               return 0
             fi
 
-            printf '미러링 시작: %s -> %s\n' "${source_ref}" "${target_ref}"
-            docker pull "${source_ref}"
-            docker tag "${source_ref}" "${target_ref}"
-            docker push "${target_ref}"
+            for platform in ${mirror_platforms}; do
+              platform_args+=(--platform "${platform}")
+            done
 
-            source_digest="$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "${source_ref}" | head -n 1 || true)"
-            target_digest="$(docker image inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "${target_ref}" | head -n 1 || true)"
+            printf '미러링 시작: %s -> %s (%s)\n' "${source_ref}" "${target_ref}" "${mirror_platforms}"
+            docker buildx imagetools create "${platform_args[@]}" --tag "${target_ref}" "${source_ref}"
+
+            target_manifest="$(docker buildx imagetools inspect "${target_ref}" || true)"
 
             {
               printf '### 관측성 이미지 미러링\n\n'
               printf -- '- 이미지: `%s`\n' "${name}"
               printf -- '- 원본: `%s`\n' "${source_ref}"
               printf -- '- 대상: `%s`\n' "${target_ref}"
-              if [ -n "${source_digest}" ]; then
-                printf -- '- 원본 digest: `%s`\n' "${source_digest}"
-              fi
-              if [ -n "${target_digest}" ]; then
-                printf -- '- 대상 digest: `%s`\n' "${target_digest}"
+              printf -- '- 플랫폼: `%s`\n' "${mirror_platforms}"
+              if [ -n "${target_manifest}" ]; then
+                printf -- '- 대상 manifest:\n\n```text\n%s\n```\n' "${target_manifest}"
               fi
               printf -- '- 결과: `push 완료`\n\n'
             } >> "${GITHUB_STEP_SUMMARY}"
