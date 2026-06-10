@@ -34,6 +34,8 @@ grafana:
       registry: docker.io
       repository: library/busybox
       tag: "1.37.0"
+  deploymentStrategy:
+    type: Recreate
   sidecar:
     image:
       registry: quay.io
