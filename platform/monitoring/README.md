@@ -6,6 +6,7 @@
 
 - `manifests/namespace.yaml`: `monitoring` namespace를 만든다.
 - `manifests/istio-mesh-podmonitors.yaml`: Istio control plane과 첫 mesh 대상인 `concert-service` Envoy sidecar metric을 수집한다.
+- `manifests/prometheusrules/*.yaml`: Prometheus Operator가 선택하는 시스템/Kubernetes 알림 후보를 관리한다.
 - `dashboards/*.json`: Grafana sidecar가 읽는 dashboard JSON을 관리한다.
 - `values/kube-prometheus-stack.yaml`: `prometheus-community/kube-prometheus-stack` values를 관리한다.
 - Grafana datasource는 이 values에서 함께 관리한다. Prometheus는 기본 datasource, Tempo/Loki는 `additionalDataSources`로 선언한다.
@@ -19,10 +20,11 @@
 4. `monitoring-aws-dev` Application은 sync wave `-20`으로 먼저 생성된다.
 5. `platform/monitoring` Kustomize source가 `monitoring` namespace를 만든다.
 6. 같은 Kustomize source가 `grafana_dashboard=1` ConfigMap으로 dashboard JSON을 적용한다.
-7. `kube-prometheus-stack` Helm source가 Prometheus Operator CRD와 chart 리소스를 적용한다.
-8. 서비스 Application이 만든 `ServiceMonitor`는 `release: kube-prometheus-stack` label로 Prometheus에 선택된다.
-9. Istio mesh용 `PodMonitor`는 `monitoring` namespace에서 만들어지고 `release: kube-prometheus-stack` label로 Prometheus에 선택된다.
-10. Tempo/Loki backend는 `platform/observability` Application들이 만든 service DNS로 연결된다.
+7. 같은 Kustomize source가 `release: kube-prometheus-stack` PrometheusRule을 적용한다.
+8. `kube-prometheus-stack` Helm source가 Prometheus Operator CRD와 chart 리소스를 적용한다.
+9. 서비스 Application이 만든 `ServiceMonitor`는 `release: kube-prometheus-stack` label로 Prometheus에 선택된다.
+10. Istio mesh용 `PodMonitor`는 `monitoring` namespace에서 만들어지고 `release: kube-prometheus-stack` label로 Prometheus에 선택된다.
+11. Tempo/Loki backend는 `platform/observability` Application들이 만든 service DNS로 연결된다.
 
 ## Istio mesh monitoring
 
@@ -104,6 +106,12 @@ Loki
 Dashboard는 UI에서 수동 생성하지 않고 `dashboards/*.json` 파일로 관리한다. `kustomization.yaml`의 `configMapGenerator`가 이 파일들을 `medikong-service-metrics-dashboards` ConfigMap으로 만들고, Grafana sidecar는 `grafana_dashboard=1` label을 기준으로 자동 반영한다.
 
 첫 화면은 `dashboards/00-service-metrics-overview.json`이다. 패널 순서는 사용자 영향과 핵심 비즈니스 흐름을 먼저 보고, 이후 이벤트와 의존성 상태로 원인을 좁히도록 둔다.
+
+서비스 runtime 상태는 `dashboards/01-service-runtime-health.json`과 `dashboards/02-service-runtime-detail.json`로 나눠 관리한다. `01-service-runtime-health.json`은 서비스 namespace/Deployment별 현재 Pod 수, available ratio, Ready=false, restart 증가, OOMKilled, memory limit 사용률, CPU throttling을 stat 타일, bar gauge, table로 빠르게 확인한다. `02-service-runtime-detail.json`은 같은 항목을 시간축으로 펼쳐 특정 시간대에 desired/available pod, Ready=false, restart, OOMKilled, CPU/memory/network 상태가 어떻게 움직였는지 확인한다.
+
+시스템/Kubernetes 메트릭은 `workspace/docs/architecture/observability/metrics/system-metrics.md` 기준으로 `dashboards/10-system-kubernetes-overview.json`, `dashboards/11-pod-container-resources.json`, `dashboards/12-node-pressure-overview.json`에서 관리한다. 진단 흐름은 서비스 영향 확인 후 Deployment 가용성, Pod/Container 자원과 restart/OOMKilled, Node Ready/Pressure 상태 순서로 내려간다. 현재 상태는 stat 타일과 bar gauge로 먼저 보고, 정확한 대상 식별은 table로 확인하며, 시간 변화가 필요한 CPU/memory/network/pressure만 time series로 둔다. PromQL은 `container=""`, `pod=""`, `container="POD"`처럼 운영 판단에 의미 없는 series를 제외한다.
+
+시스템/Kubernetes 알림 후보는 `manifests/prometheusrules/system-kubernetes-alerts.yaml`에 둔다. 현재 rule은 Deployment available 부족, Ready=false Pod, restart 증가, OOMKilled, CPU throttling, Node MemoryPressure를 `release: kube-prometheus-stack` selector에 맞춰 Prometheus가 선택하도록 관리한다.
 
 ## Docker Desktop 로컬 테스트
 

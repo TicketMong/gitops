@@ -1,0 +1,87 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: system-kubernetes-alerts
+  labels:
+    app.kubernetes.io/name: system-kubernetes-alerts
+    app.kubernetes.io/part-of: medikong-platform
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: medikong.system.kubernetes
+      rules:
+        - alert: MedikongDeploymentReplicasUnavailable
+          expr: |
+            sum by (namespace, deployment) (
+              kube_deployment_spec_replicas{namespace=~"ticketing-.*|monitoring|observability"}
+              - kube_deployment_status_replicas_available{namespace=~"ticketing-.*|monitoring|observability"}
+            ) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Deployment has unavailable replicas"
+            description: "{{ $labels.namespace }}/{{ $labels.deployment }} has unavailable replicas for more than 10 minutes."
+        - alert: MedikongPodNotReady
+          expr: |
+            sum by (namespace, pod) (
+              kube_pod_status_ready{namespace=~"ticketing-.*|monitoring|observability",condition="false"} == 1
+            ) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod is not Ready"
+            description: "{{ $labels.namespace }}/{{ $labels.pod }} has Ready=false for more than 10 minutes."
+        - alert: MedikongPodContainerRestarting
+          expr: |
+            sum by (namespace, pod, container) (
+              increase(kube_pod_container_status_restarts_total{namespace=~"ticketing-.*|monitoring|observability",container!="",container!="POD",pod!=""}[15m])
+            ) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Container restart increased"
+            description: "{{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} restarted within the last 15 minutes."
+        - alert: MedikongPodOOMKilled
+          expr: |
+            max by (namespace, pod, container) (
+              kube_pod_container_status_last_terminated_reason{namespace=~"ticketing-.*|monitoring|observability",reason="OOMKilled",container!="",pod!=""} == 1
+            ) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Container was OOMKilled"
+            description: "{{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} last terminated with OOMKilled."
+        - alert: MedikongContainerCpuThrottlingHigh
+          expr: |
+            100 *
+            sum by (namespace, pod, container) (
+              rate(container_cpu_cfs_throttled_seconds_total{namespace=~"ticketing-.*|monitoring|observability",container!="",container!="POD",pod!="",image!=""}[5m])
+            )
+            /
+            clamp_min(
+              sum by (namespace, pod, container) (
+                rate(container_cpu_cfs_periods_total{namespace=~"ticketing-.*|monitoring|observability",container!="",container!="POD",pod!="",image!=""}[5m])
+              ),
+              0.001
+            ) > 25
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Container CPU throttling is high"
+            description: "{{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} CPU throttling ratio is above 25% for more than 15 minutes."
+        - alert: MedikongNodeMemoryPressure
+          expr: |
+            max by (node) (
+              kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
+            ) > 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node reports MemoryPressure"
+            description: "{{ $labels.node }} reports MemoryPressure for more than 10 minutes."
