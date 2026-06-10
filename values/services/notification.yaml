@@ -58,6 +58,14 @@ ingress:
           paths:
             - path: /notifications
               pathType: Prefix
+    - name: notification-debug-api
+      annotations:
+        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+      hosts:
+        - host: ""
+          paths:
+            - path: /__debug/notification/status
+              pathType: Prefix
 
 networkPolicy:
   enabled: true

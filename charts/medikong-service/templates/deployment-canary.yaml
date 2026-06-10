@@ -2,6 +2,7 @@
 {{- if default false $canary.enabled }}
 {{- $canaryImage := default dict $canary.image }}
 {{- $canaryVersion := default "v2" $canary.version }}
+{{- $serviceVersion := default .Values.image.tag $canaryImage.tag }}
 {{- $canaryName := printf "%s-%s" .Values.app.name (default $canaryVersion $canary.nameSuffix) }}
 apiVersion: apps/v1
 kind: Deployment
@@ -61,16 +62,21 @@ spec:
       containers:
         - name: {{ default .Values.app.name .Values.container.name | quote }}
 {{- if .Values.image.registry }}
-          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ default .Values.image.tag $canaryImage.tag }}"
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ $serviceVersion }}"
 {{- else }}
-          image: "{{ .Values.image.repository }}:{{ default .Values.image.tag $canaryImage.tag }}"
+          image: "{{ .Values.image.repository }}:{{ $serviceVersion }}"
 {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
           ports:
             - name: http
               containerPort: {{ .Values.container.port }}
               protocol: TCP
-{{- with .Values.container.env }}
+{{- $observabilityEnv := list
+  (dict "name" "SERVICE_VERSION" "value" $serviceVersion)
+  (dict "name" "SERVICE_ENVIRONMENT" "value" .Values.environment)
+}}
+{{- $containerEnv := concat $observabilityEnv .Values.container.env }}
+{{- with $containerEnv }}
           env:
 {{ toYaml . | nindent 12 }}
 {{- end }}

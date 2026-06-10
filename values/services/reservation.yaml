@@ -57,6 +57,14 @@ ingress:
           paths:
             - path: /reservations
               pathType: Prefix
+    - name: reservation-debug-api
+      annotations:
+        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+      hosts:
+        - host: ""
+          paths:
+            - path: /__debug/reservation/status
+              pathType: Prefix
     - name: reservation-provider-api
       annotations:
         konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-role-provider,ticketing-rate-limit-reservations,ticketing-correlation-id,ticketing-prometheus

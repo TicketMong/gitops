@@ -65,7 +65,10 @@ spec:
             - name: http
               containerPort: {{ .Values.container.port }}
               protocol: TCP
-{{- $observabilityEnv := list }}
+{{- $observabilityEnv := list
+  (dict "name" "SERVICE_VERSION" "value" .Values.image.tag)
+  (dict "name" "SERVICE_ENVIRONMENT" "value" .Values.environment)
+}}
 {{- if .Values.observability.tracing.enabled }}
 {{- $observabilityEnv = append $observabilityEnv (dict "name" "OTEL_TRACES_EXPORTER" "value" "otlp") }}
 {{- with .Values.observability.tracing.otlpEndpoint }}

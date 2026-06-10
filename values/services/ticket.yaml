@@ -65,6 +65,14 @@ ingress:
           paths:
             - path: /tickets
               pathType: Prefix
+    - name: ticket-debug-api
+      annotations:
+        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+      hosts:
+        - host: ""
+          paths:
+            - path: /__debug/ticket/status
+              pathType: Prefix
 
 networkPolicy:
   enabled: true

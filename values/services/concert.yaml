@@ -44,6 +44,14 @@ ingress:
               pathType: Prefix
             - path: /performances
               pathType: Prefix
+    - name: concert-debug-api
+      annotations:
+        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+      hosts:
+        - host: ""
+          paths:
+            - path: /__debug/concert/status
+              pathType: Prefix
     - name: concert-provider-api
       annotations:
         konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-role-provider,ticketing-rate-limit-concerts,ticketing-correlation-id,ticketing-prometheus

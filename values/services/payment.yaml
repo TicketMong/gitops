@@ -42,6 +42,14 @@ ingress:
           paths:
             - path: /payments
               pathType: Prefix
+    - name: payment-debug-api
+      annotations:
+        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+      hosts:
+        - host: ""
+          paths:
+            - path: /__debug/payment/status
+              pathType: Prefix
     - name: payment-provider-api
       annotations:
         konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-role-provider,ticketing-rate-limit-payments,ticketing-correlation-id,ticketing-prometheus

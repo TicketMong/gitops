@@ -184,8 +184,7 @@ tasks:
         {{.KUBECTL}} get servicemonitor --all-namespaces -l release={{.MONITORING_RELEASE}}
 
   dev:service:
-    internal: true
-    desc: SERVICE=<name> 하나만 build/push 후 Docker Desktop dev에 Helm 배포합니다.
+    desc: SERVICE=<name|all> 하나 또는 전체 dev 서비스를 build/push 후 Docker Desktop dev에 Helm 배포합니다.
     cmds:
       - task: dev:registry
       - |
@@ -195,15 +194,6 @@ tasks:
         image_registry='{{.DEV_REGISTRY}}'
         image_namespace='{{.DEV_IMAGE_NAMESPACE}}'
         rollout_id='{{.DEV_ROLLOUT_ID}}'
-        if [ -z "${service}" ]; then
-          printf '%s\n' 'SERVICE is required, for example: task dev:service SERVICE=concert' >&2
-          exit 2
-        fi
-        service_file="values/services/${service}.yaml"
-        if [ ! -f "${service_file}" ]; then
-          printf 'Unknown SERVICE=%s (expected values/services/%s.yaml).\n' "${service}" "${service}" >&2
-          exit 2
-        fi
         if [ ! -d "${service_repo}" ]; then
           printf 'SERVICE_REPO does not exist: %s\n' "${service_repo}" >&2
           exit 2
@@ -217,6 +207,39 @@ tasks:
         fi
         if [ -n "${image_namespace}" ]; then
           image_registry="${image_registry%/}/${image_namespace#/}"
+        fi
+        local_docker_build_platform() {
+          arch="$(uname -m 2>/dev/null || true)"
+          case "${arch}" in
+            arm64|aarch64)
+              printf '%s\n' 'linux/arm64'
+              return 0
+              ;;
+            x86_64|amd64)
+              printf '%s\n' 'linux/amd64'
+              return 0
+              ;;
+          esac
+          docker_arch="$(docker info --format '{{"{{"}}.Architecture{{"}}"}}' 2>/dev/null || true)"
+          case "${docker_arch}" in
+            arm64|aarch64)
+              printf '%s\n' 'linux/arm64'
+              return 0
+              ;;
+            x86_64|amd64)
+              printf '%s\n' 'linux/amd64'
+              return 0
+              ;;
+          esac
+          printf 'Unsupported local build architecture: uname=%s docker=%s\n' "${arch}" "${docker_arch}" >&2
+          return 2
+        }
+        dev_build_platform="$(local_docker_build_platform)"
+        printf 'Using local Docker build platform: %s\n' "${dev_build_platform}"
+        if [ -z "${service}" ] || [ "${service}" = "all" ]; then
+          selected_services='{{.DEV_SERVICES}}'
+        else
+          selected_services="${service}"
         fi
         yaml_section_field() {
           awk -v section="$2" -v wanted="$3" '
@@ -236,37 +259,93 @@ tasks:
             }
           ' "$1"
         }
-        namespace="$(yaml_section_field "${service_file}" app namespace)"
-        app_name="$(yaml_section_field "${service_file}" app name)"
-        image_repository="$(yaml_section_field "${service_file}" image repository)"
-        release="${service}-{{.LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX}}"
+        image_services=""
+        for selected_service in ${selected_services}; do
+          service_file="values/services/${selected_service}.yaml"
+          if [ ! -f "${service_file}" ]; then
+            printf 'Unknown SERVICE=%s (expected values/services/%s.yaml).\n' "${selected_service}" "${selected_service}" >&2
+            exit 2
+          fi
+          image_repository="$(yaml_section_field "${service_file}" image repository)"
+          if [ ! -f "${service_repo}/services/${image_repository}/Dockerfile" ] && [ ! -f "${service_repo}/${image_repository}/Dockerfile" ]; then
+            printf 'No local image source for SERVICE entry %s: %s\n' "${selected_service}" "${image_repository}" >&2
+            exit 2
+          fi
+          image_services="${image_services} ${image_repository}"
+        done
+        image_services="$(printf '%s\n' "${image_services}" | sed 's/^[[:space:]]*//')"
+        if [ -z "${image_services}" ]; then
+          printf '%s\n' 'SERVICE selection did not resolve any image repositories.' >&2
+          exit 2
+        fi
+        dashboard_service="${image_services%% *}"
+        app_image_services="${image_services#${dashboard_service}}"
+        app_image_services="$(printf '%s\n' "${app_image_services}" | sed 's/^[[:space:]]*//')"
         if ! task --dir "${service_repo}" --dry app-images-push \
-          APP_IMAGE_SERVICES= \
-          DASHBOARD_SERVICE="${image_repository}" \
+          APP_IMAGE_SERVICES="${app_image_services}" \
+          DASHBOARD_SERVICE="${dashboard_service}" \
           IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
           IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
-          IMAGE_TAG="{{.DEV_IMAGE_TAG}}" >/dev/null 2>&1; then
+          IMAGE_TAG="{{.DEV_IMAGE_TAG}}" \
+          DOCKER_BUILD_PLATFORMS="${dev_build_platform}" >/dev/null 2>&1; then
           printf '%s\n' 'SERVICE_REPO Taskfile is missing required target: app-images-push' >&2
           exit 2
         fi
         task --dir "${service_repo}" app-images-push \
-          APP_IMAGE_SERVICES= \
-          DASHBOARD_SERVICE="${image_repository}" \
+          APP_IMAGE_SERVICES="${app_image_services}" \
+          DASHBOARD_SERVICE="${dashboard_service}" \
           IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
           IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
-          IMAGE_TAG="{{.DEV_IMAGE_TAG}}"
+          IMAGE_TAG="{{.DEV_IMAGE_TAG}}" \
+          DOCKER_BUILD_PLATFORMS="${dev_build_platform}"
         task --taskfile platform/monitoring/Taskfile.yml up
-        {{.HELM}} upgrade --install "${release}" {{.SERVICE_CHART}} \
-          --namespace "${namespace}" \
-          --create-namespace \
-          -f {{.VALUES_BASE}} \
-          -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
-          -f "${service_file}" \
-          --set-string image.registry="${image_registry}" \
-          --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
-          --set-string image.pullPolicy=Always \
-          --set-string 'deployment.podAnnotations.medikong\.io/dev-rollout-id='"${rollout_id}"
-        {{.KUBECTL}} rollout status "deployment/${app_name}" -n "${namespace}" --timeout=180s
+        pids=""
+        for selected_service in ${selected_services}; do
+          service_file="values/services/${selected_service}.yaml"
+          namespace="$(yaml_section_field "${service_file}" app namespace)"
+          release="${selected_service}-{{.LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX}}"
+          (
+            {{.HELM}} upgrade --install "${release}" {{.SERVICE_CHART}} \
+              --namespace "${namespace}" \
+              --create-namespace \
+              -f {{.VALUES_BASE}} \
+              -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
+              -f "${service_file}" \
+              --set-string image.registry="${image_registry}" \
+              --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
+              --set-string image.pullPolicy=Always \
+              --set-string 'deployment.podAnnotations.medikong\.io/dev-rollout-id='"${rollout_id}"
+          ) &
+          pids="${pids} $!"
+        done
+        failed=0
+        for pid in ${pids}; do
+          if ! wait "${pid}"; then
+            failed=1
+          fi
+        done
+        if [ "${failed}" -ne 0 ]; then
+          exit 1
+        fi
+        pids=""
+        for selected_service in ${selected_services}; do
+          service_file="values/services/${selected_service}.yaml"
+          namespace="$(yaml_section_field "${service_file}" app namespace)"
+          app_name="$(yaml_section_field "${service_file}" app name)"
+          (
+            {{.KUBECTL}} rollout status "deployment/${app_name}" -n "${namespace}" --timeout=180s
+          ) &
+          pids="${pids} $!"
+        done
+        failed=0
+        for pid in ${pids}; do
+          if ! wait "${pid}"; then
+            failed=1
+          fi
+        done
+        if [ "${failed}" -ne 0 ]; then
+          exit 1
+        fi
 
   dev:restart:
     internal: true
@@ -435,6 +514,34 @@ tasks:
           printf 'SERVICE_REPO has no Taskfile.yml: %s\n' "${service_repo}" >&2
           exit 2
         fi
+        local_docker_build_platform() {
+          arch="$(uname -m 2>/dev/null || true)"
+          case "${arch}" in
+            arm64|aarch64)
+              printf '%s\n' 'linux/arm64'
+              return 0
+              ;;
+            x86_64|amd64)
+              printf '%s\n' 'linux/amd64'
+              return 0
+              ;;
+          esac
+          docker_arch="$(docker info --format '{{"{{"}}.Architecture{{"}}"}}' 2>/dev/null || true)"
+          case "${docker_arch}" in
+            arm64|aarch64)
+              printf '%s\n' 'linux/arm64'
+              return 0
+              ;;
+            x86_64|amd64)
+              printf '%s\n' 'linux/amd64'
+              return 0
+              ;;
+          esac
+          printf 'Unsupported local build architecture: uname=%s docker=%s\n' "${arch}" "${docker_arch}" >&2
+          return 2
+        }
+        dev_build_platform="$(local_docker_build_platform)"
+        printf 'Using local Docker build platform: %s\n' "${dev_build_platform}"
         yaml_section_field() {
           awk -v section="$2" -v wanted="$3" '
             $1 == section ":" { in_section = 1; next }
@@ -480,7 +587,8 @@ tasks:
           DASHBOARD_SERVICE="${dashboard_service}" \
           IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
           IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
-          IMAGE_TAG="{{.DEV_IMAGE_TAG}}" >/dev/null 2>&1; then
+          IMAGE_TAG="{{.DEV_IMAGE_TAG}}" \
+          DOCKER_BUILD_PLATFORMS="${dev_build_platform}" >/dev/null 2>&1; then
           printf '%s\n' 'SERVICE_REPO Taskfile is missing required target: app-images-push' >&2
           exit 2
         fi
@@ -489,7 +597,8 @@ tasks:
           DASHBOARD_SERVICE="${dashboard_service}" \
           IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
           IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
-          IMAGE_TAG="{{.DEV_IMAGE_TAG}}"
+          IMAGE_TAG="{{.DEV_IMAGE_TAG}}" \
+          DOCKER_BUILD_PLATFORMS="${dev_build_platform}"
 
   dev:data:
     internal: true
@@ -791,6 +900,53 @@ tasks:
       - task: dev:kong:status
       - task --taskfile platform/monitoring/Taskfile.yml status
       - task: observability:status
+
+  dev:pause:
+    desc: Helm release/PVC는 유지하고 Docker Desktop dev Pod만 모두 0 replica로 낮춥니다. 재시작은 task dev를 사용합니다.
+    cmds:
+      - |
+        set -eu
+        app_field() {
+          awk -v wanted="$2" '
+            $1 == "app:" { in_app = 1; next }
+            in_app && /^[^[:space:]]/ { in_app = 0 }
+            in_app {
+              line = $0
+              sub(/^[[:space:]]+/, "", line)
+              key = line
+              sub(/:.*/, "", key)
+              if (key == wanted) {
+                sub(/^[^:]*:[[:space:]]*/, "", line)
+                gsub(/^"|"$/, "", line)
+                print line
+                exit
+              }
+            }
+          ' "$1"
+        }
+        namespaces="monitoring observability {{.KONG_NAMESPACE}} ticketing-messaging"
+        for service_file in values/services/*.yaml; do
+          namespace="$(app_field "${service_file}" namespace)"
+          if [ -n "${namespace}" ]; then
+            namespaces="${namespaces} ${namespace}"
+          fi
+        done
+        printf '%s\n' ${namespaces} | awk 'NF && !seen[$0]++' | while IFS= read -r namespace; do
+          if ! {{.KUBECTL}} get namespace "${namespace}" >/dev/null 2>&1; then
+            printf 'Skip missing namespace: %s\n' "${namespace}"
+            continue
+          fi
+          controllers="$({{.KUBECTL}} -n "${namespace}" get deployment,statefulset -o name 2>/dev/null || true)"
+          if [ -z "${controllers}" ]; then
+            printf 'No scalable controllers in namespace: %s\n' "${namespace}"
+            continue
+          fi
+          printf '%s\n' "${controllers}" | while IFS= read -r controller; do
+            if [ -n "${controller}" ]; then
+              {{.KUBECTL}} -n "${namespace}" scale "${controller}" --replicas=0
+            fi
+          done
+        done
 
   dev:down:
     desc: Docker Desktop Kubernetes에 배포한 local Helm release, observability backend, Medikong namespace를 정리합니다.
