@@ -45,6 +45,13 @@ grafana:
       registry: quay.io
       repository: kiwigrid/k8s-sidecar
       tag: 2.7.3
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 256Mi
     dashboards:
       enabled: true
       label: grafana_dashboard
@@ -97,10 +104,10 @@ grafana:
   resources:
     requests:
       cpu: 50m
-      memory: 128Mi
+      memory: 256Mi
     limits:
       cpu: 300m
-      memory: 384Mi
+      memory: 1Gi
   # aws-dev 3-node cluster currently has no dedicated platform worker.
   # Keep this empty temporarily so the scheduler can place Grafana on available workers.
   nodeSelector: {}
