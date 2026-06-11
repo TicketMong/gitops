@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kong-gateway
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: kong-gateway
+    app.kubernetes.io/part-of: medikong-platform
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - kong
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: kong
+      app.kubernetes.io/name: kong
+  endpoints:
+    - port: cmetrics
+      path: /metrics
+      interval: 30s

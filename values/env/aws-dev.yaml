@@ -42,3 +42,6 @@ hpa:
 
 serviceMonitor:
   enabled: true
+  networkPolicy:
+    extraPorts:
+      - 15090

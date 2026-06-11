@@ -17,6 +17,7 @@ spec:
 {{- $serviceMonitorNetworkPolicy := default dict .Values.serviceMonitor.networkPolicy }}
 {{- $allowPrometheusScrape := and .Values.serviceMonitor.enabled (default true $serviceMonitorNetworkPolicy.enabled) }}
 {{- $monitoringNamespace := default "monitoring" $serviceMonitorNetworkPolicy.namespace }}
+{{- $extraPrometheusScrapePorts := default (list) $serviceMonitorNetworkPolicy.extraPorts }}
 {{- if or .Values.networkPolicy.ingress $allowPrometheusScrape }}
   ingress:
 {{- with .Values.networkPolicy.ingress }}
@@ -30,6 +31,10 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.serviceMonitor.port | quote }}
+{{- range $extraPrometheusScrapePorts }}
+        - protocol: TCP
+          port: {{ . }}
+{{- end }}
 {{- end }}
 {{- else }}
   ingress: []

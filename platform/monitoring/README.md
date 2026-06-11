@@ -5,7 +5,8 @@
 ## 범위
 
 - `manifests/namespace.yaml`: `monitoring` namespace를 만든다.
-- `manifests/istio-mesh-podmonitors.yaml`: Istio control plane과 첫 mesh 대상인 `concert-service` Envoy sidecar metric을 수집한다.
+- `manifests/istio-mesh-podmonitors.yaml`: Istio control plane과 주요 ticketing 서비스의 Envoy sidecar metric을 수집한다.
+- `manifests/kong-servicemonitor.yaml`: Kong Gateway metric endpoint를 Prometheus scrape 대상으로 등록한다.
 - `manifests/prometheusrules/*.yaml`: Prometheus Operator가 선택하는 시스템/Kubernetes 알림 후보를 관리한다.
 - `dashboards/*.json`: Grafana sidecar가 읽는 dashboard JSON을 관리한다.
 - `values/kube-prometheus-stack.yaml`: `prometheus-community/kube-prometheus-stack` values를 관리한다.
@@ -23,12 +24,12 @@
 7. 같은 Kustomize source가 `release: kube-prometheus-stack` PrometheusRule을 적용한다.
 8. `kube-prometheus-stack` Helm source가 Prometheus Operator CRD와 chart 리소스를 적용한다.
 9. 서비스 Application이 만든 `ServiceMonitor`는 `release: kube-prometheus-stack` label로 Prometheus에 선택된다.
-10. Istio mesh용 `PodMonitor`는 `monitoring` namespace에서 만들어지고 `release: kube-prometheus-stack` label로 Prometheus에 선택된다.
+10. Kong Gateway용 `ServiceMonitor`와 Istio mesh용 `PodMonitor`는 `monitoring` namespace에서 만들어지고 `release: kube-prometheus-stack` label로 Prometheus에 선택된다.
 11. Tempo/Loki backend는 `platform/observability` Application들이 만든 service DNS로 연결된다.
 
 ## Istio mesh monitoring
 
-Mesh monitoring은 첫 rollout에서 전체 namespace를 한 번에 열지 않는다. `concert-service`에 sidecar injection을 먼저 적용하고, 해당 Envoy sidecar metric부터 Prometheus에 수집한다.
+Mesh monitoring은 첫 rollout에서 `concert-service`에 sidecar injection을 먼저 적용해 검증했다. 이후 `reservation-service`, `payment-service`, `ticket-service`, `notification-service`까지 같은 PodMonitor로 확장한다.
 
 수집 대상:
 
@@ -38,13 +39,39 @@ istiod
   - endpoint: /metrics
   - port: http-monitoring
 
-concert-service Envoy sidecar
-  - namespace: ticketing-concert
+ticketing service Envoy sidecar
+  - namespace: ticketing-concert, ticketing-reservation, ticketing-payment, ticketing-ticket, ticketing-notification
   - endpoint: /stats/prometheus
   - port: http-envoy-prom
 ```
 
 PodMonitor는 `monitoring` namespace에 둔다. Prometheus 설정이 `podMonitorSelector.matchLabels.release=kube-prometheus-stack`와 `podMonitorNamespaceSelector`를 사용하기 때문이다.
+
+서비스별 NetworkPolicy는 기본적으로 `monitoring` namespace에서 애플리케이션 `/metrics` 포트만 허용한다. Envoy sidecar metric은 `istio-proxy`의 `15090` 포트로 노출되므로, aws-dev values에서는 `serviceMonitor.networkPolicy.extraPorts`로 `15090`을 함께 허용한다. 이 설정이 없으면 Prometheus target은 생성되어도 `context deadline exceeded`로 down 상태가 된다.
+
+## Kong Gateway monitoring
+
+Kong Gateway는 Kong prometheus plugin과 `kong-kong-metrics` Service를 통해 metric을 노출한다. `manifests/kong-servicemonitor.yaml`은 `kong` namespace의 `kong-kong-metrics` Service를 선택하고 `cmetrics` port의 `/metrics`를 scrape한다.
+
+수집 대상:
+
+```text
+kong-kong-metrics
+  - namespace: kong
+  - endpoint: /metrics
+  - port: cmetrics
+```
+
+Prometheus에서 확인할 query:
+
+```promql
+{__name__=~".*kong.*"}
+kong_http_requests_total
+kong_kong_latency_ms_bucket
+kong_upstream_latency_ms_bucket
+```
+
+Kong metric은 Gateway 레벨 요청 수, status code, Kong latency, upstream latency, plugin 처리 상태를 확인하는 데 사용한다. Loki 로그가 개별 요청의 상세 기록이라면, Kong metric은 외부 진입점 전체의 숫자 지표다.
 
 Prometheus에서 확인할 query:
 

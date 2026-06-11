@@ -132,3 +132,4 @@ serviceMonitor:
   networkPolicy:
     enabled: true
     namespace: monitoring
+    extraPorts: []

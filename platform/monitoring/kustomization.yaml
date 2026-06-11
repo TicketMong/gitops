@@ -5,6 +5,7 @@ resources:
   - manifests/namespace.yaml
   - manifests/grafana-ingress.yaml
   - manifests/istio-mesh-podmonitors.yaml
+  - manifests/kong-servicemonitor.yaml
   - manifests/prometheusrules/system-kubernetes-alerts.yaml
 generatorOptions:
   disableNameSuffixHash: true
