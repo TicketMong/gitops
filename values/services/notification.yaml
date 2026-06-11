@@ -7,7 +7,7 @@ app:
 
 image:
   repository: notification-service
-  tag: 5da1411213e875fe48421bbb83844291a027e356
+  tag: 0900cecae5b2a3913bb9c22fbc137d968838737d
 
 deployment:
   replicas: 1
