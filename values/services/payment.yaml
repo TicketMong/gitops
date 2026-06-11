@@ -7,7 +7,7 @@ app:
 
 image:
   repository: payment-service
-  tag: c5b8461da38b922fe0cf0b3cc224b226a7ebe297
+  tag: b89f66e7502575ba11ce80db04c1c52d73e1bad3
 
 deployment:
   replicas: 1
