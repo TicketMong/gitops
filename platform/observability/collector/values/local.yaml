@@ -11,9 +11,33 @@ command:
 
 serviceAccount:
   create: true
-  automountServiceAccountToken: false
+  automountServiceAccountToken: true
+
+clusterRole:
+  create: true
+  rules:
+    - apiGroups:
+        - ""
+      resources:
+        - namespaces
+        - pods
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - apps
+      resources:
+        - replicasets
+      verbs:
+        - get
+        - list
+        - watch
 
 replicaCount: 1
+
+service:
+  enabled: true
 
 ports:
   otlp:
@@ -45,48 +69,72 @@ ports:
 
 alternateConfig:
   receivers:
+    filelog:
+      include:
+        - /var/log/pods/*/*/*.log
+      exclude:
+        - /var/log/pods/observability_opentelemetry-collector*_*/opentelemetry-collector/*.log
+      include_file_name: false
+      include_file_path: true
+      start_at: end
+      retry_on_failure:
+        enabled: true
+      operators:
+        - id: container-parser
+          type: container
+          max_log_size: 102400
+        - id: json-body-parser
+          type: json_parser
+          parse_from: body
+          parse_to: attributes
+          if: body matches "^\\{"
     otlp:
       protocols:
         grpc:
           endpoint: 0.0.0.0:4317
         http:
           endpoint: 0.0.0.0:4318
-    filelog/kubernetes:
-      include:
-        - /var/log/pods/*/*/*.log
-      exclude:
-        - /var/log/pods/observability_opentelemetry-collector-*/*/*.log
-      start_at: end
-      include_file_path: true
-      operators:
-        - type: container
-          id: container-parser
-        - type: json_parser
-          id: parse-json-body
-          if: body matches "^\\{"
-          parse_from: body
-          parse_to: attributes
-        - type: regex_parser
-          id: parse-kubernetes-log-path
-          parse_from: attributes["log.file.path"]
-          regex: '^/var/log/pods/(?P<k8s_namespace>[^_]+)_(?P<k8s_pod>[^_]+)_(?P<k8s_pod_uid>[^/]+)/(?P<k8s_container>[^/]+)/(?P<k8s_restart_count>\d+)\.log$'
   processors:
-    memory_limiter:
-      check_interval: 1s
-      limit_percentage: 75
-      spike_limit_percentage: 20
-    transform/log_context:
+    k8sattributes:
+      auth_type: serviceAccount
+      passthrough: false
+      extract:
+        metadata:
+          - k8s.namespace.name
+          - k8s.pod.name
+          - k8s.container.name
+          - k8s.deployment.name
+          - k8s.job.name
+          - k8s.cronjob.name
+        labels:
+          - tag_name: app
+            key: app.kubernetes.io/name
+            from: pod
+          - tag_name: environment
+            key: medikong.io/environment
+            from: pod
+      pod_association:
+        - sources:
+            - from: resource_attribute
+              name: k8s.pod.ip
+        - sources:
+            - from: resource_attribute
+              name: k8s.pod.name
+            - from: resource_attribute
+              name: k8s.namespace.name
+    transform/log_labels:
       error_mode: ignore
       log_statements:
         - context: log
           statements:
-            - set(resource.attributes["service.name"], attributes["service.name"]) where attributes["service.name"] != nil
-            - set(resource.attributes["service.version"], attributes["service.version"]) where attributes["service.version"] != nil
-            - set(resource.attributes["deployment.environment.name"], attributes["service.environment"]) where attributes["service.environment"] != nil
-            - set(resource.attributes["k8s.namespace.name"], attributes["k8s_namespace"]) where attributes["k8s_namespace"] != nil
-            - set(resource.attributes["k8s.pod.name"], attributes["k8s_pod"]) where attributes["k8s_pod"] != nil
-            - set(resource.attributes["k8s.container.name"], attributes["k8s_container"]) where attributes["k8s_container"] != nil
-            - set(severity_text, attributes["severity_text"]) where attributes["severity_text"] != nil
+            - set(resource.attributes["scenario"], attributes["scenario"]) where attributes["scenario"] != nil
+            - set(resource.attributes["step"], attributes["step"]) where attributes["step"] != nil
+            - set(resource.attributes["service.name"], resource.attributes["app"]) where resource.attributes["app"] != nil
+            - set(resource.attributes["deployment.environment.name"], resource.attributes["environment"]) where resource.attributes["environment"] != nil
+    memory_limiter:
+      check_interval: 1s
+      limit_percentage: 75
+      spike_limit_percentage: 20
     filter/drop_probe_success:
       error_mode: ignore
       logs:
@@ -96,12 +144,12 @@ alternateConfig:
       timeout: 5s
       send_batch_size: 8192
   exporters:
+    otlphttp/loki:
+      endpoint: http://loki.observability.svc.cluster.local:3100/otlp
     otlp/tempo:
       endpoint: tempo.observability.svc.cluster.local:4317
       tls:
         insecure: true
-    otlphttp/loki:
-      endpoint: http://loki.observability.svc.cluster.local:3100/otlp
   extensions:
     health_check:
       endpoint: 0.0.0.0:13133
@@ -117,24 +165,26 @@ alternateConfig:
                   host: 0.0.0.0
                   port: 8888
     pipelines:
-      traces:
-        receivers:
-          - otlp
-        processors:
-          - memory_limiter
-          - batch
-        exporters:
-          - otlp/tempo
       logs:
         receivers:
-          - filelog/kubernetes
+          - filelog
         processors:
+          - k8sattributes
+          - transform/log_labels
           - memory_limiter
-          - transform/log_context
           - filter/drop_probe_success
           - batch
         exporters:
           - otlphttp/loki
+      traces:
+        receivers:
+          - otlp
+        processors:
+          - k8sattributes
+          - memory_limiter
+          - batch
+        exporters:
+          - otlp/tempo
 
 serviceMonitor:
   enabled: true
@@ -144,9 +194,6 @@ serviceMonitor:
       interval: 30s
   extraLabels:
     release: kube-prometheus-stack
-
-service:
-  enabled: true
 
 podSecurityContext:
   runAsNonRoot: false
@@ -158,9 +205,26 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
+  runAsUser: 0
   capabilities:
     drop:
       - ALL
+
+extraVolumes:
+  - name: varlogpods
+    hostPath:
+      path: /var/log/pods
+  - name: varlogcontainers
+    hostPath:
+      path: /var/log/containers
+
+extraVolumeMounts:
+  - name: varlogpods
+    mountPath: /var/log/pods
+    readOnly: true
+  - name: varlogcontainers
+    mountPath: /var/log/containers
+    readOnly: true
 
 resources:
   requests:
@@ -173,22 +237,6 @@ resources:
 podLabels:
   app.kubernetes.io/part-of: medikong
   app.kubernetes.io/component: trace-log-collector
-
-extraVolumes:
-  - name: varlogpods
-    hostPath:
-      path: /var/log/pods
-  - name: varlibdockercontainers
-    hostPath:
-      path: /var/lib/docker/containers
-
-extraVolumeMounts:
-  - name: varlogpods
-    mountPath: /var/log/pods
-    readOnly: true
-  - name: varlibdockercontainers
-    mountPath: /var/lib/docker/containers
-    readOnly: true
 
 extraManifests:
   - apiVersion: networking.k8s.io/v1
