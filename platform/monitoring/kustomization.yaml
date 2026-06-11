@@ -31,3 +31,4 @@ configMapGenerator:
       - dashboards/logs-50-synthetic.json
       - dashboards/logs-60-business-flow.json
       - dashboards/logs-70-platform.json
+      - dashboards/logs-80-service-trace-detail.json
