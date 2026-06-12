@@ -310,16 +310,17 @@
     },
     {
       "id": 7,
-      "title": "5xx and Slow Request Trend",
+      "title": "RED 24h Trend",
       "type": "timeseries",
       "datasource": {
         "type": "loki",
         "uid": "loki"
       },
+      "timeFrom": "24h",
       "gridPos": {
         "x": 0,
         "y": 4,
-        "w": 12,
+        "w": 24,
         "h": 7
       },
       "fieldConfig": {
@@ -346,7 +347,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" | http_status_code=~\"5..\" [$__interval]))",
+          "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" [$__interval]))",
+          "legendFormat": "Requests",
           "range": true,
           "refId": "A"
         },
@@ -356,31 +358,190 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" | duration_ms >= 1000 [$__interval]))",
+          "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" | http_status_code=~\"5..\" [$__interval]))",
+          "legendFormat": "5xx",
           "range": true,
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" | duration_ms >= 1000 [$__interval]))",
+          "legendFormat": "Slow >= 1s",
+          "range": true,
+          "refId": "C"
         }
       ]
     },
     {
-      "id": 8,
-      "title": "5xx 5m / 30m",
+      "id": 13,
+      "title": "Requests 5m / 30m / 24h",
       "type": "stat",
       "datasource": {
         "type": "loki",
         "uid": "loki"
       },
       "gridPos": {
-        "x": 12,
-        "y": 4,
-        "w": 6,
-        "h": 7
+        "x": 0,
+        "y": 11,
+        "w": 8,
+        "h": 6
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Requests 5m"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Requests 30m"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Requests 24h"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" [5m]))",
+          "legendFormat": "Requests 5m",
+          "range": false,
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" [30m]))",
+          "legendFormat": "Requests 30m",
+          "range": false,
+          "refId": "B",
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" [24h]))",
+          "legendFormat": "Requests 24h",
+          "range": false,
+          "refId": "C",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "5xx 5m / 30m / 24h",
+      "type": "stat",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 11,
+        "w": 8,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "5xx 5m"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "5xx 30m"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "5xx 24h"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "reduceOptions": {
@@ -404,6 +565,7 @@
           },
           "editorMode": "code",
           "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" | http_status_code=~\"5..\" [5m]))",
+          "legendFormat": "5xx 5m",
           "range": false,
           "refId": "A",
           "instant": true
@@ -415,31 +577,81 @@
           },
           "editorMode": "code",
           "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" | http_status_code=~\"5..\" [30m]))",
+          "legendFormat": "5xx 30m",
           "range": false,
           "refId": "B",
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" | http_status_code=~\"5..\" [24h]))",
+          "legendFormat": "5xx 24h",
+          "range": false,
+          "refId": "C",
           "instant": true
         }
       ]
     },
     {
       "id": 9,
-      "title": "Slow 5m / 30m",
+      "title": "Slow 5m / 30m / 24h",
       "type": "stat",
       "datasource": {
         "type": "loki",
         "uid": "loki"
       },
       "gridPos": {
-        "x": 18,
-        "y": 4,
-        "w": 6,
-        "h": 7
+        "x": 16,
+        "y": 11,
+        "w": 8,
+        "h": 6
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Slow 5m"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Slow 30m"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Slow 24h"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "reduceOptions": {
@@ -463,6 +675,7 @@
           },
           "editorMode": "code",
           "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" | duration_ms >= 1000 [5m]))",
+          "legendFormat": "Slow 5m",
           "range": false,
           "refId": "A",
           "instant": true
@@ -474,8 +687,21 @@
           },
           "editorMode": "code",
           "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" | duration_ms >= 1000 [30m]))",
+          "legendFormat": "Slow 30m",
           "range": false,
           "refId": "B",
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({k8s_namespace_name=~\"ticketing-.*\", k8s_container_name=~\".*-service\"} | json | event=\"http.request.completed\" | http_route!~\"/health|/metrics|/readyz\" | duration_ms >= 1000 [24h]))",
+          "legendFormat": "Slow 24h",
+          "range": false,
+          "refId": "C",
           "instant": true
         }
       ]
@@ -490,7 +716,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 11,
+        "y": 17,
         "w": 12,
         "h": 8
       },
@@ -539,7 +765,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 11,
+        "y": 17,
         "w": 12,
         "h": 8
       },
@@ -577,7 +803,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 19,
+        "y": 25,
         "w": 24,
         "h": 10
       },

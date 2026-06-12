@@ -1,6 +1,6 @@
 {
   "uid": "medikong-node-pressure-overview",
-  "title": "12 Node Pressure Overview",
+  "title": "Infra Health 12 - Node Pressure Overview",
   "tags": [
     "medikong",
     "kubernetes",
