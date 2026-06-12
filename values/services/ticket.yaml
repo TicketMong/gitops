@@ -7,7 +7,7 @@ app:
 
 image:
   repository: ticket-service
-  tag: 0900cecae5b2a3913bb9c22fbc137d968838737d
+  tag: e3a552c6fb4faf464118faa7a580353d4e107084
 
 deployment:
   replicas: 1
