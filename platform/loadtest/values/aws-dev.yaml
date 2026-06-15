@@ -24,6 +24,7 @@ dataset:
   seatRows: 10
   seatsPerRow: 30
   discoveryLimit: 300
+  createPauseSeconds: 0.2
   cronJob:
     suspend: false
     schedule: "5 */6 * * *"
@@ -39,8 +40,9 @@ loadtest:
   baseUrl: http://kong-kong-proxy.kong.svc.cluster.local
   localBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
   awsBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
-  vus: 10
+  vus: 2
   duration: 5m
+  thinkTimeSeconds: 4
   thresholds:
     httpReqFailedRate: "0.01"
     httpReqDurationP95Ms: "750"

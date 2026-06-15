@@ -1,4 +1,4 @@
-import { fail } from 'k6';
+import { fail, sleep } from 'k6';
 
 import { authHeaders, getJson, requestJson, requestWithExpectedStatuses } from '../../lib/http.js';
 import { itemsFrom, requireField } from '../../lib/pick.js';
@@ -178,6 +178,12 @@ function createPerformanceWithSeats(config, providerToken, concert, concertIndex
   return showtime;
 }
 
+function pauseAfterDatasetUnit(config) {
+  if (config.dataset.createPauseSeconds > 0) {
+    sleep(config.dataset.createPauseSeconds);
+  }
+}
+
 export function setupReadApiBasicDataset(config, tokens) {
   const existing = new Map(existingDatasetConcerts(config).map((concert) => [concert.title, concert]));
   const state = {
@@ -215,6 +221,7 @@ export function setupReadApiBasicDataset(config, tokens) {
     }
     verifySeats(config, verifiedPerformances[0]);
     state.verifiedConcerts += 1;
+    pauseAfterDatasetUnit(config);
   }
 
   return state;

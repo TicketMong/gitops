@@ -20,6 +20,15 @@ function positiveNumber(name, fallback) {
   return value;
 }
 
+function nonNegativeNumber(name, fallback) {
+  const raw = optional(name, String(fallback));
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative number`);
+  }
+  return value;
+}
+
 function positiveInteger(name, fallback) {
   const value = positiveNumber(name, fallback);
   if (!Number.isInteger(value)) {
@@ -58,22 +67,31 @@ function baseUrlForTarget(target) {
 export function getConfig() {
   const target = optional('LOADTEST_TARGET', 'local');
   const scenario = optional('LOADTEST_SCENARIO', 'read-api-baseline');
+  const environment = optional('LOADTEST_ENVIRONMENT', target);
   const requestPrefix = optional('LOADTEST_REQUEST_PREFIX', 'loadtest');
   const runId = optional('LOADTEST_RUN_ID', `${Date.now()}`);
   const baseUrl = baseUrlForTarget(target).replace(/\/+$/, '');
+  const imageTag = optional('LOADTEST_IMAGE_TAG', 'unknown');
 
   return {
     testType: optional('LOADTEST_TEST_TYPE', 'loadtest'),
     scenario,
+    environment,
     target,
     runId,
     baseUrl,
+    revision: optional('LOADTEST_REVISION', imageTag),
+    image: optional('LOADTEST_IMAGE'),
+    imageTag,
+    release: optional('LOADTEST_RELEASE'),
+    namespace: optional('LOADTEST_NAMESPACE'),
     requestPrefix,
     requestIdBase: `${requestPrefix}-${scenario}-${runId}`,
     timeoutSeconds: positiveNumber('LOADTEST_TIMEOUT_SECONDS', 10),
     vus: positiveInteger('LOADTEST_VUS', 5),
     duration: optional('LOADTEST_DURATION', '2m'),
     gracefulStop: optional('LOADTEST_GRACEFUL_STOP', '30s'),
+    thinkTimeSeconds: nonNegativeNumber('LOADTEST_THINK_TIME_SECONDS', 0),
     concertLimit: positiveInteger('LOADTEST_CONCERT_LIMIT', 50),
     performanceLimit: positiveInteger('LOADTEST_PERFORMANCE_LIMIT', 50),
     seatLimit: positiveInteger('LOADTEST_SEAT_LIMIT', 200),
@@ -96,6 +114,7 @@ export function getConfig() {
       lookaheadDays: nonNegativeInteger('LOADTEST_DATASET_LOOKAHEAD_DAYS', 14),
       startsAtSpacingMinutes: positiveInteger('LOADTEST_DATASET_STARTS_AT_SPACING_MINUTES', 180),
       discoveryLimit: positiveInteger('LOADTEST_DATASET_DISCOVERY_LIMIT', 200),
+      createPauseSeconds: nonNegativeNumber('LOADTEST_DATASET_CREATE_PAUSE_SECONDS', 0),
       providerEmail: optional('LOADTEST_PROVIDER_EMAIL'),
       providerPassword: optional('LOADTEST_PROVIDER_PASSWORD'),
       adminEmail: optional('LOADTEST_ADMIN_EMAIL'),

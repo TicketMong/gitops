@@ -57,7 +57,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(k6_http_req_duration_seconds_bucket{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(kong_request_latency_ms_bucket{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval]))) / 1000",
           "legendFormat": "p50",
           "range": true
         }
@@ -115,7 +115,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(k6_http_req_duration_seconds_bucket{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(kong_request_latency_ms_bucket{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval]))) / 1000",
           "legendFormat": "p95",
           "range": true
         }
@@ -173,7 +173,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(k6_http_req_duration_seconds_bucket{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(kong_request_latency_ms_bucket{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval]))) / 1000",
           "legendFormat": "p99",
           "range": true
         }
@@ -211,7 +211,7 @@
     },
     {
       "id": 5,
-      "title": "Max Latency",
+      "title": "Avg Latency",
       "type": "stat",
       "gridPos": {
         "x": 12,
@@ -231,7 +231,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max(k6_http_req_duration_seconds_max{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"})",
+          "expr": "sum(rate(kong_request_latency_ms_sum{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval])) / clamp_min(sum(rate(kong_request_latency_ms_count{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval])), 0.001) / 1000",
           "legendFormat": "max",
           "range": true
         }
@@ -289,7 +289,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * sum(rate(k6_http_req_failed_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}[$__rate_interval])) / clamp_min(sum(rate(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}[$__rate_interval])), 0.001)",
+          "expr": "100 * sum(rate(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\",code=~\"4..|5..\"}[$__rate_interval])) / clamp_min(sum(rate(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval])), 0.001)",
           "legendFormat": "failed",
           "range": true
         }
@@ -335,7 +335,7 @@
     },
     {
       "id": 7,
-      "title": "Check Failure",
+      "title": "5xx Rate",
       "type": "stat",
       "gridPos": {
         "x": 20,
@@ -355,7 +355,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * sum(rate(k6_checks_failed_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\"}[$__rate_interval])) / clamp_min(sum(rate(k6_checks_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\"}[$__rate_interval])), 0.001)",
+          "expr": "100 * sum(rate(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\",code=~\"5..\"}[$__rate_interval])) / clamp_min(sum(rate(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval])), 0.001)",
           "legendFormat": "checks",
           "range": true
         }
@@ -434,8 +434,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (route, scenario, le) (rate(k6_http_req_duration_seconds_bucket{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}[$__rate_interval])))",
-          "legendFormat": "p50 {{route}} {{scenario}}",
+          "expr": "histogram_quantile(0.50, sum by (route, le) (rate(kong_request_latency_ms_bucket{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval]))) / 1000",
+          "legendFormat": "p50 {{route}}",
           "range": true
         },
         {
@@ -445,8 +445,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (route, scenario, le) (rate(k6_http_req_duration_seconds_bucket{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}[$__rate_interval])))",
-          "legendFormat": "p95 {{route}} {{scenario}}",
+          "expr": "histogram_quantile(0.95, sum by (route, le) (rate(kong_request_latency_ms_bucket{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval]))) / 1000",
+          "legendFormat": "p95 {{route}}",
           "range": true
         },
         {
@@ -456,8 +456,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (route, scenario, le) (rate(k6_http_req_duration_seconds_bucket{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}[$__rate_interval])))",
-          "legendFormat": "p99 {{route}} {{scenario}}",
+          "expr": "histogram_quantile(0.99, sum by (route, le) (rate(kong_request_latency_ms_bucket{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval]))) / 1000",
+          "legendFormat": "p99 {{route}}",
           "range": true
         }
       ],
@@ -491,7 +491,7 @@
     },
     {
       "id": 10,
-      "title": "Max Latency by Route",
+      "title": "Avg Latency by Route",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
@@ -511,8 +511,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max by (route, scenario) (k6_http_req_duration_seconds_max{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"})",
-          "legendFormat": "{{route}} {{scenario}}",
+          "expr": "sum by (route) (rate(kong_request_latency_ms_sum{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval])) / clamp_min(sum by (route) (rate(kong_request_latency_ms_count{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval])), 0.001) / 1000",
+          "legendFormat": "{{route}}",
           "range": true
         }
       ],
@@ -566,8 +566,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * sum by (route, scenario) (rate(k6_http_req_failed_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}[$__rate_interval])) / clamp_min(sum by (route, scenario) (rate(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}[$__rate_interval])), 0.001)",
-          "legendFormat": "{{route}} {{scenario}}",
+          "expr": "100 * sum by (route) (rate(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\",code=~\"4..|5..\"}[$__rate_interval])) / clamp_min(sum by (route) (rate(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval])), 0.001)",
+          "legendFormat": "{{route}}",
           "range": true
         }
       ],
@@ -634,8 +634,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * sum by (route, scenario) (rate(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\",status=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (route, scenario) (rate(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}[$__rate_interval])), 0.001)",
-          "legendFormat": "{{route}} {{scenario}}",
+          "expr": "100 * sum by (route) (rate(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\",code=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (route) (rate(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval])), 0.001)",
+          "legendFormat": "{{route}}",
           "range": true
         }
       ],
@@ -669,7 +669,7 @@
     },
     {
       "id": 14,
-      "title": "Check Failure Rate",
+      "title": "4xx Rate by Route",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
@@ -689,8 +689,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * sum by (scenario, profile, target) (rate(k6_checks_failed_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\"}[$__rate_interval])) / clamp_min(sum by (scenario, profile, target) (rate(k6_checks_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\"}[$__rate_interval])), 0.001)",
-          "legendFormat": "{{scenario}} {{profile}} {{target}}",
+          "expr": "100 * sum by (route) (rate(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\",code=~\"4..\"}[$__rate_interval])) / clamp_min(sum by (route) (rate(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\"}[$__rate_interval])), 0.001)",
+          "legendFormat": "{{route}}",
           "range": true
         }
       ],
@@ -724,7 +724,7 @@
     },
     {
       "id": 15,
-      "title": "Status Code Distribution",
+      "title": "Response Code Distribution",
       "type": "bargauge",
       "gridPos": {
         "x": 0,
@@ -744,8 +744,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (status) (increase(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\",status=~\"$status\"}[$__range]))",
-          "legendFormat": "{{status}}",
+          "expr": "sum by (code) (increase(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\",code=~\"$status\"}[$__range]))",
+          "legendFormat": "{{code}}",
           "range": true
         }
       ],
@@ -800,8 +800,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(20, sum by (route, scenario, status) (increase(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\",status=~\"4..|5..\"}[$__range])))",
-          "legendFormat": "{{route}} {{scenario}} {{status}}",
+          "expr": "topk(20, sum by (route, code) (increase(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\",code=~\"4..|5..\"}[$__range])))",
+          "legendFormat": "{{route}} {{code}}",
           "range": true
         }
       ],
@@ -847,118 +847,73 @@
   "templating": {
     "list": [
       {
-        "name": "environment",
-        "label": "Environment",
-        "type": "query",
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "query": "label_values(k6_http_reqs_total, environment)",
-        "definition": "label_values(k6_http_reqs_total, environment)",
-        "refresh": 1,
-        "includeAll": true,
-        "multi": true,
         "current": {
           "selected": true,
           "text": "All",
           "value": "$__all"
-        }
-      },
-      {
-        "name": "profile",
-        "label": "Profile",
-        "type": "query",
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "query": "label_values(k6_http_reqs_total{environment=~\"$environment\"}, profile)",
-        "definition": "label_values(k6_http_reqs_total{environment=~\"$environment\"}, profile)",
-        "refresh": 1,
+        "definition": "label_values(kong_http_requests_total, exported_service)",
+        "hide": 0,
         "includeAll": true,
         "multi": true,
+        "name": "service",
+        "options": [],
+        "query": "label_values(kong_http_requests_total, exported_service)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
         "current": {
           "selected": true,
           "text": "All",
           "value": "$__all"
-        }
-      },
-      {
-        "name": "scenario",
-        "label": "Scenario",
-        "type": "query",
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "query": "label_values(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\"}, scenario)",
-        "definition": "label_values(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\"}, scenario)",
-        "refresh": 1,
+        "definition": "label_values(kong_http_requests_total{exported_service=~\"$service\"}, route)",
+        "hide": 0,
         "includeAll": true,
         "multi": true,
-        "current": {
-          "selected": true,
-          "text": "All",
-          "value": "$__all"
-        }
-      },
-      {
-        "name": "target",
-        "label": "Target",
-        "type": "query",
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "query": "label_values(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\"}, target)",
-        "definition": "label_values(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\"}, target)",
-        "refresh": 1,
-        "includeAll": true,
-        "multi": true,
-        "current": {
-          "selected": true,
-          "text": "All",
-          "value": "$__all"
-        }
-      },
-      {
         "name": "route",
-        "label": "Route",
-        "type": "query",
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "query": "label_values(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\"}, route)",
-        "definition": "label_values(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\"}, route)",
+        "options": [],
+        "query": "label_values(kong_http_requests_total{exported_service=~\"$service\"}, route)",
         "refresh": 1,
-        "includeAll": true,
-        "multi": true,
-        "current": {
-          "selected": true,
-          "text": "All",
-          "value": "$__all"
-        }
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
       },
       {
-        "name": "status",
-        "label": "Status",
-        "type": "query",
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "query": "label_values(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}, status)",
-        "definition": "label_values(k6_http_reqs_total{environment=~\"$environment\",profile=~\"$profile\",scenario=~\"$scenario\",target=~\"$target\",route=~\"$route\"}, status)",
-        "refresh": 1,
-        "includeAll": true,
-        "multi": true,
         "current": {
           "selected": true,
           "text": "All",
           "value": "$__all"
-        }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\"}, code)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "status",
+        "options": [],
+        "query": "label_values(kong_http_requests_total{exported_service=~\"$service\",route=~\"$route\"}, code)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
       }
     ]
   },

@@ -44,6 +44,7 @@ dataset:
   lookaheadDays: 14
   startsAtSpacingMinutes: 180
   discoveryLimit: 200
+  createPauseSeconds: 0
   timeoutSeconds: 15
   requestPrefix: loadtest-dataset
   cronJob:
@@ -99,6 +100,7 @@ loadtest:
   testType: loadtest
   scenario: read-api-baseline
   target: local
+  revision: ""
   baseUrl: http://kong-kong-proxy.kong.svc.cluster.local
   localBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
   awsBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
@@ -107,6 +109,7 @@ loadtest:
   vus: 5
   duration: 2m
   gracefulStop: 30s
+  thinkTimeSeconds: 0
   concertLimit: 50
   performanceLimit: 50
   seatLimit: 200

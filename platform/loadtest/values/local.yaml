@@ -12,11 +12,12 @@ cronJob:
   schedule: "0 */6 * * *"
 
 dataset:
-  concerts: 20
+  concerts: 5
   performancesPerConcert: 2
   seatSections: 1
   seatRows: 10
   seatsPerRow: 30
+  createPauseSeconds: 0.5
   cronJob:
     suspend: true
     schedule: "5 */6 * * *"
@@ -32,8 +33,9 @@ loadtest:
   baseUrl: http://kong-kong-proxy.kong.svc.cluster.local
   localBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
   awsBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
-  vus: 5
-  duration: 2m
+  vus: 1
+  duration: 30s
+  thinkTimeSeconds: 2
   thresholds:
     httpReqFailedRate: "0.01"
     httpReqDurationP95Ms: "500"

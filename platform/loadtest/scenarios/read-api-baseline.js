@@ -1,11 +1,19 @@
-import { group } from 'k6';
+import { group, sleep } from 'k6';
+import { Rate } from 'k6/metrics';
 
 import { getConfig } from '../lib/config.js';
 import { getJson } from '../lib/http.js';
-import { logRunFailed, logRunFinished, logRunStarted, summaryLine } from '../lib/log.js';
+import {
+  logExperimentConditions,
+  logRunFailed,
+  logRunFinished,
+  logRunStarted,
+  summaryLine,
+} from '../lib/log.js';
 import { itemsFrom, pickByIteration, requireField } from '../lib/pick.js';
 
 const config = getConfig();
+const readIterationSuccess = new Rate('loadtest_read_iteration_success');
 
 function iterationConfig() {
   const runId = `${Date.now()}-${__VU}-${__ITER}`;
@@ -16,16 +24,23 @@ function iterationConfig() {
   };
 }
 
+function pauseBetweenReadIterations(runConfig) {
+  if (runConfig.thinkTimeSeconds > 0) {
+    sleep(runConfig.thinkTimeSeconds);
+  }
+}
+
 export const options = {
   scenarios: {
-    read_api_baseline: {
+    [config.scenario]: {
       executor: 'constant-vus',
       vus: config.vus,
       duration: config.duration,
       gracefulStop: config.gracefulStop,
       tags: {
+        environment: config.environment,
+        profile: config.dataset.profile,
         test_type: config.testType,
-        scenario: config.scenario,
         target: config.target,
       },
     },
@@ -37,14 +52,21 @@ export const options = {
       `p(99)<${config.thresholds.httpReqDurationP99Ms}`,
     ],
     checks: [`rate>${config.thresholds.checksRate}`],
+    loadtest_read_iteration_success: [`rate>${config.thresholds.checksRate}`],
   },
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   tags: {
+    environment: config.environment,
+    profile: config.dataset.profile,
     test_type: config.testType,
-    scenario: config.scenario,
     target: config.target,
   },
 };
+
+export function setup() {
+  logExperimentConditions(config, 'read_baseline');
+  return {};
+}
 
 export default function readApiBaseline() {
   const runConfig = iterationConfig();
@@ -82,10 +104,14 @@ export default function readApiBaseline() {
       state.seatCount = seats.length;
     });
 
+    readIterationSuccess.add(true);
     logRunFinished(runConfig, state);
   } catch (error) {
+    readIterationSuccess.add(false);
     logRunFailed(runConfig, 'read_api_baseline', error, state);
     throw error;
+  } finally {
+    pauseBetweenReadIterations(runConfig);
   }
 }
 

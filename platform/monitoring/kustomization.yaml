@@ -59,3 +59,5 @@ configMapGenerator:
       - dashboards/load/load-20-latency-and-errors.json
       - dashboards/load/load-30-service-saturation.json
       - dashboards/load/load-40-cause-candidates.json
+      - dashboards/load/load-50-service-resource-and-traffic.json
+      - dashboards/load/load-60-k6-runner-execution.json

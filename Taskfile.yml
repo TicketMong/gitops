@@ -94,7 +94,14 @@ tasks:
       - task: synthetic:run
 
   dev:loadtest:
-    desc: Docker Desktop dev에 read API loadtest k6 CronJob을 배포합니다.
+    desc: Docker Desktop dev에 read API loadtest를 배포하고 dataset setup과 read baseline을 순차 실행합니다.
+    cmds:
+      - task: dev:loadtest:deploy
+      - task: dev:loadtest:setup-dataset
+      - task: dev:loadtest:run
+
+  dev:loadtest:deploy:
+    desc: Docker Desktop dev에 read API loadtest k6 CronJob만 배포합니다.
     cmds:
       - task: dev:registry
       - task: loadtest:secret-local

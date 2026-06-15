@@ -8,15 +8,22 @@ metadata:
 data:
   LOADTEST_TEST_TYPE: {{ required "loadtest.testType is required" .Values.loadtest.testType | quote }}
   LOADTEST_SCENARIO: {{ required "loadtest.scenario is required" .Values.loadtest.scenario | quote }}
+  LOADTEST_ENVIRONMENT: {{ required "environment is required" .Values.environment | quote }}
   LOADTEST_TARGET: {{ required "loadtest.target is required" .Values.loadtest.target | quote }}
   LOADTEST_BASE_URL: {{ required "loadtest.baseUrl is required" .Values.loadtest.baseUrl | quote }}
   LOADTEST_LOCAL_BASE_URL: {{ .Values.loadtest.localBaseUrl | quote }}
   LOADTEST_AWS_BASE_URL: {{ .Values.loadtest.awsBaseUrl | quote }}
+  LOADTEST_REVISION: {{ default .Values.image.tag .Values.loadtest.revision | quote }}
+  LOADTEST_IMAGE: {{ include "read-api-loadtest.image" . | quote }}
+  LOADTEST_IMAGE_TAG: {{ .Values.image.tag | quote }}
+  LOADTEST_RELEASE: {{ .Release.Name | quote }}
+  LOADTEST_NAMESPACE: {{ include "read-api-loadtest.namespace" . | quote }}
   LOADTEST_TIMEOUT_SECONDS: {{ .Values.loadtest.timeoutSeconds | quote }}
   LOADTEST_REQUEST_PREFIX: {{ .Values.loadtest.requestPrefix | quote }}
   LOADTEST_VUS: {{ .Values.loadtest.vus | quote }}
   LOADTEST_DURATION: {{ .Values.loadtest.duration | quote }}
   LOADTEST_GRACEFUL_STOP: {{ .Values.loadtest.gracefulStop | quote }}
+  LOADTEST_THINK_TIME_SECONDS: {{ .Values.loadtest.thinkTimeSeconds | quote }}
   LOADTEST_CONCERT_LIMIT: {{ .Values.loadtest.concertLimit | quote }}
   LOADTEST_PERFORMANCE_LIMIT: {{ .Values.loadtest.performanceLimit | quote }}
   LOADTEST_SEAT_LIMIT: {{ .Values.loadtest.seatLimit | quote }}
@@ -36,4 +43,5 @@ data:
   LOADTEST_DATASET_LOOKAHEAD_DAYS: {{ .Values.dataset.lookaheadDays | quote }}
   LOADTEST_DATASET_STARTS_AT_SPACING_MINUTES: {{ .Values.dataset.startsAtSpacingMinutes | quote }}
   LOADTEST_DATASET_DISCOVERY_LIMIT: {{ .Values.dataset.discoveryLimit | quote }}
+  LOADTEST_DATASET_CREATE_PAUSE_SECONDS: {{ .Values.dataset.createPauseSeconds | quote }}
   K6_OUTPUT: {{ .Values.k6.output | quote }}

@@ -79,6 +79,11 @@ tasks:
       - |
         set -eu
         {{.KUBECTL}} create namespace {{.NAMESPACE}} --dry-run=client -o yaml | {{.KUBECTL}} apply -f -
+        {{.KUBECTL}} label namespace {{.NAMESPACE}} app.kubernetes.io/managed-by=Helm --overwrite
+        {{.KUBECTL}} annotate namespace {{.NAMESPACE}} \
+          meta.helm.sh/release-name={{.RELEASE}} \
+          meta.helm.sh/release-namespace={{.NAMESPACE}} \
+          --overwrite
         {{.KUBECTL}} -n {{.NAMESPACE}} create secret generic {{.CREDENTIALS_SECRET}} \
           --from-literal=LOADTEST_PROVIDER_EMAIL="${LOADTEST_PROVIDER_EMAIL:-provider@example.com}" \
           --from-literal=LOADTEST_PROVIDER_PASSWORD="${LOADTEST_PROVIDER_PASSWORD:-provider1234}" \
@@ -118,13 +123,13 @@ tasks:
         while true; do
           complete="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)"
           failed="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.failed}' 2>/dev/null || true)"
-          if [ "${complete:-0}" -ge 1 ]; then
-            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300
-            exit 0
-          fi
           if [ "${failed:-0}" -ge 1 ]; then
             {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300 || true
             exit 1
+          fi
+          if [ "${complete:-0}" -ge 1 ]; then
+            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300
+            exit 0
           fi
           if [ "$(date +%s)" -ge "${deadline}" ]; then
             {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300 || true
@@ -145,13 +150,13 @@ tasks:
         while true; do
           complete="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)"
           failed="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.failed}' 2>/dev/null || true)"
-          if [ "${complete:-0}" -ge 1 ]; then
-            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300
-            exit 0
-          fi
           if [ "${failed:-0}" -ge 1 ]; then
             {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300 || true
             exit 1
+          fi
+          if [ "${complete:-0}" -ge 1 ]; then
+            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300
+            exit 0
           fi
           if [ "$(date +%s)" -ge "${deadline}" ]; then
             {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300 || true

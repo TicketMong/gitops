@@ -7,6 +7,59 @@ function emit(event, fields) {
   }));
 }
 
+function datasetShape(config) {
+  const seatsPerPerformance = (
+    config.dataset.seatSections
+    * config.dataset.seatRows
+    * config.dataset.seatsPerRow
+  );
+  const totalPerformances = config.dataset.concerts * config.dataset.performancesPerConcert;
+
+  return {
+    dataset_profile: config.dataset.profile,
+    dataset_revision: config.dataset.revision,
+    dataset_title_prefix: config.dataset.titlePrefix,
+    dataset_concerts: config.dataset.concerts,
+    dataset_performances_per_concert: config.dataset.performancesPerConcert,
+    dataset_total_performances: totalPerformances,
+    dataset_seat_sections: config.dataset.seatSections,
+    dataset_seat_rows: config.dataset.seatRows,
+    dataset_seats_per_row: config.dataset.seatsPerRow,
+    dataset_seats_per_performance: seatsPerPerformance,
+    dataset_total_seats: totalPerformances * seatsPerPerformance,
+    dataset_discovery_limit: config.dataset.discoveryLimit,
+  };
+}
+
+export function logExperimentConditions(config, phase) {
+  emit('loadtest_experiment_conditions', {
+    loadtest_run_id: config.runId,
+    phase,
+    scenario: config.scenario,
+    environment: config.environment,
+    target: config.target,
+    target_base_url: config.baseUrl,
+    revision: config.revision,
+    image: config.image,
+    image_tag: config.imageTag,
+    release: config.release,
+    namespace: config.namespace,
+    vus: config.vus,
+    duration: config.duration,
+    graceful_stop: config.gracefulStop,
+    think_time_seconds: config.thinkTimeSeconds,
+    concert_limit: config.concertLimit,
+    performance_limit: config.performanceLimit,
+    seat_limit: config.seatLimit,
+    threshold_http_req_failed_rate: config.thresholds.httpReqFailedRate,
+    threshold_http_req_duration_p95_ms: config.thresholds.httpReqDurationP95Ms,
+    threshold_http_req_duration_p99_ms: config.thresholds.httpReqDurationP99Ms,
+    threshold_checks_rate: config.thresholds.checksRate,
+    measurement_window_source: 'grafana_time_range',
+    ...datasetShape(config),
+  });
+}
+
 export function logRunStarted(config) {
   emit('loadtest_run_started', {
     loadtest_run_id: config.runId,

@@ -162,19 +162,15 @@ Load dashboard는 조회 API 부하 테스트 실행 중 빠르게 상태를 판
 
 Load dashboard는 synthetic dashboard와 섞지 않는다. Synthetic은 실제 사용 처리 과정처럼 주기적으로 보내는 자동화 테스트 트래픽을 확인하는 영역이며 `Logs 50 - Synthetic`에서 run/step/result 로그를 본다. Load는 사용자가 선택한 부하 테스트 profile과 target을 기준으로 RPS, latency, error, service saturation, 원인 후보를 확인하는 영역이다.
 
-Load dashboard가 전제하는 k6 metric label은 `scenario`, `profile`, `target`, `environment`, `route`, `status`처럼 낮은 cardinality 값이다. `request_id`, `trace_id`, 사용자 ID, raw URL은 metric label로 올리지 않는다. 필요하면 로그 본문 field나 Tempo trace 조회로 내려간다.
+Load dashboard는 수집 신호를 역할별로 나눠 본다. `Load 20 - Latency and Errors`는 이미 scrape 중인 Kong Gateway metric을 사용해 실제 ingress가 받은 요청의 latency, response code, error rate를 본다. k6 runner 자체의 VU, iteration, dropped iteration 같은 발생기 지표가 필요하면 k6 Prometheus/OTel output을 별도 수집 경로로 켠 뒤 `scenario`, `profile`, `target`, `environment`, `route`, `status`처럼 낮은 cardinality label만 사용한다. `request_id`, `trace_id`, 사용자 ID, raw URL은 metric label로 올리지 않는다. 필요하면 로그 본문 field나 Tempo trace 조회로 내려간다.
 
 Load dashboard 확인 순서:
 
 ```text
-Load 10 - Read API Load Overview
-  목표 RPS 대비 실제 RPS, p95/p99, 실패율, 5xx, dropped iterations를 먼저 본다.
-Load 20 - Latency and Errors
-  route/scenario별 latency와 error 분포를 보고 느린 조회 API와 실패 형태를 좁힌다.
-Load 30 - Service Saturation
-  대상 서비스의 CPU, throttling, memory, restart를 보고 k6 runner 자원과 분리해서 판단한다.
-Load 40 - Cause Candidates
-  DB latency, connection pool wait, queue depth, consumer lag, restart 같은 후보를 비교한다.
+Load 50 - Service Resource and Traffic
+  auth/concert/notification/payment/reservation/ticket의 CPU, memory, RPS, p95 latency를 2열 큰 그래프로 비교한다.
+Load 60 - k6 Runner Execution
+  k6 runner CPU/memory, Job 실패 수, 실험 조건, 실행 시작/종료/실패/summary 로그를 보고 부하테스트가 정상 실행됐는지 확인한다.
 ```
 
 `Load 40 - Cause Candidates`는 원인을 확정하는 화면이 아니다. 아직 metric 계약이 없는 connection pool wait, queue depth, consumer lag 같은 항목은 readiness/stat/table 패널로 먼저 드러내며, 없는 신호를 억지 PromQL로 정상처럼 보이게 만들지 않는다. 값이 비어 있으면 해당 metric 수집 계약이나 exporter 배포가 먼저 필요하다.

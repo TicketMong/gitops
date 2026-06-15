@@ -78,6 +78,10 @@ containers:
           optional: false
 {{- end }}
     env:
+      - name: LOADTEST_RUN_ID
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
       - name: LOADTEST_SCENARIO
         value: {{ $scenario | quote }}
 {{- with $root.Values.extraEnv }}
