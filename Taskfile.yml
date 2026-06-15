@@ -32,6 +32,9 @@ includes:
   synthetic:
     taskfile: platform/synthetic/Taskfile.yml
     dir: platform/synthetic
+  loadtest:
+    taskfile: platform/loadtest/Taskfile.yml
+    dir: platform/loadtest
 
 tasks:
   default:
@@ -89,6 +92,23 @@ tasks:
     desc: 배포된 synthetic CronJob에서 수동 Job을 1회 실행하고 로그를 봅니다.
     cmds:
       - task: synthetic:run
+
+  dev:loadtest:
+    desc: Docker Desktop dev에 read API loadtest k6 CronJob을 배포합니다.
+    cmds:
+      - task: dev:registry
+      - task: loadtest:secret-local
+      - task: loadtest:deploy
+
+  dev:loadtest:setup-dataset:
+    desc: 배포된 read API loadtest dataset CronJob에서 로컬 수동 Job을 1회 실행하고 로그를 봅니다.
+    cmds:
+      - task: loadtest:setup-dataset
+
+  dev:loadtest:run:
+    desc: 배포된 read API loadtest CronJob에서 수동 Job을 1회 실행하고 로그를 봅니다.
+    cmds:
+      - task: loadtest:run
 
   dev:platform:
     internal: true

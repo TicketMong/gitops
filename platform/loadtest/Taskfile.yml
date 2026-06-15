@@ -1,0 +1,183 @@
+version: "3"
+
+vars:
+  HELM: '{{default "helm" .HELM}}'
+  KUBECTL: '{{default "kubectl" .KUBECTL}}'
+  DOCKER: '{{default "docker" .DOCKER}}'
+  RELEASE: '{{default "read-api-loadtest" .LOADTEST_RELEASE}}'
+  NAMESPACE: '{{default "loadtest" .LOADTEST_NAMESPACE}}'
+  IMAGE_REGISTRY: '{{default "localhost:5001" .DEV_REGISTRY}}'
+  IMAGE_NAMESPACE: '{{default "" .DEV_IMAGE_NAMESPACE}}'
+  IMAGE_REPOSITORY: '{{default "read-api-loadtest" .LOADTEST_IMAGE_REPOSITORY}}'
+  IMAGE_TAG: '{{default "dev" .DEV_IMAGE_TAG}}'
+  VALUES_FILE: '{{default "values/local.yaml" .LOADTEST_VALUES_FILE}}'
+  CREDENTIALS_SECRET: '{{default "read-api-loadtest-credentials" .LOADTEST_CREDENTIALS_SECRET}}'
+
+tasks:
+  default:
+    desc: Read API loadtest task 목록을 표시합니다.
+    cmds:
+      - task --list
+
+  lint:
+    desc: Read API loadtest Helm chart를 검사합니다.
+    cmds:
+      - '{{.HELM}} lint .'
+
+  render:
+    desc: Read API loadtest Helm chart를 렌더링합니다.
+    cmds:
+      - |
+        set -eu
+        values_file="${LOADTEST_VALUES_FILE:-{{.VALUES_FILE}}}"
+        image_ref="$(task image-ref --silent)"
+        image_registry="${image_ref%/*}"
+        image_name_tag="${image_ref##*/}"
+        image_repository="${image_name_tag%:*}"
+        image_tag="${image_name_tag##*:}"
+        {{.HELM}} template {{.RELEASE}} . \
+          -f "${values_file}" \
+          --namespace {{.NAMESPACE}} \
+          --set-string image.registry="${image_registry}" \
+          --set-string image.repository="${image_repository}" \
+          --set-string image.tag="${image_tag}"
+
+  image-ref:
+    desc: Read API loadtest runner image reference를 출력합니다.
+    cmds:
+      - |
+        set -eu
+        image_registry='{{.IMAGE_REGISTRY}}'
+        image_namespace='{{.IMAGE_NAMESPACE}}'
+        image_repository='{{.IMAGE_REPOSITORY}}'
+        image_tag='{{.IMAGE_TAG}}'
+        if [ -n "${image_namespace}" ]; then
+          image_registry="${image_registry%/}/${image_namespace#/}"
+        fi
+        printf '%s/%s:%s\n' "${image_registry%/}" "${image_repository}" "${image_tag}"
+
+  image-build:
+    desc: Read API loadtest runner image를 빌드합니다.
+    cmds:
+      - |
+        set -eu
+        image_ref="$(task image-ref --silent)"
+        {{.DOCKER}} build -f runner/Dockerfile -t "${image_ref}" .
+
+  image-push:
+    desc: Read API loadtest runner image를 registry에 push합니다.
+    cmds:
+      - task: image-build
+      - |
+        set -eu
+        image_ref="$(task image-ref --silent)"
+        {{.DOCKER}} push "${image_ref}"
+
+  secret-local:
+    desc: 로컬 read API loadtest dataset credential Secret을 준비합니다.
+    cmds:
+      - |
+        set -eu
+        {{.KUBECTL}} create namespace {{.NAMESPACE}} --dry-run=client -o yaml | {{.KUBECTL}} apply -f -
+        {{.KUBECTL}} -n {{.NAMESPACE}} create secret generic {{.CREDENTIALS_SECRET}} \
+          --from-literal=LOADTEST_PROVIDER_EMAIL="${LOADTEST_PROVIDER_EMAIL:-provider@example.com}" \
+          --from-literal=LOADTEST_PROVIDER_PASSWORD="${LOADTEST_PROVIDER_PASSWORD:-provider1234}" \
+          --from-literal=LOADTEST_ADMIN_EMAIL="${LOADTEST_ADMIN_EMAIL:-admin@example.com}" \
+          --from-literal=LOADTEST_ADMIN_PASSWORD="${LOADTEST_ADMIN_PASSWORD:-admin1234}" \
+          --dry-run=client -o yaml | {{.KUBECTL}} apply -f -
+
+  deploy:
+    desc: Read API loadtest runner image를 push하고 CronJob을 Helm으로 배포합니다.
+    cmds:
+      - task: image-push
+      - task: render
+      - |
+        set -eu
+        values_file="${LOADTEST_VALUES_FILE:-{{.VALUES_FILE}}}"
+        image_ref="$(task image-ref --silent)"
+        image_registry="${image_ref%/*}"
+        image_name_tag="${image_ref##*/}"
+        image_repository="${image_name_tag%:*}"
+        image_tag="${image_name_tag##*:}"
+        {{.HELM}} upgrade --install {{.RELEASE}} . \
+          --namespace {{.NAMESPACE}} \
+          --create-namespace \
+          -f "${values_file}" \
+          --set-string image.registry="${image_registry}" \
+          --set-string image.repository="${image_repository}" \
+          --set-string image.tag="${image_tag}"
+
+  setup-dataset:
+    desc: 배포된 dataset CronJob template에서 로컬 수동 Job을 1회 생성하고 로그를 출력합니다.
+    cmds:
+      - |
+        set -eu
+        job_name="{{.RELEASE}}-dataset-manual-$(date -u +%Y%m%d%H%M%S)"
+        {{.KUBECTL}} -n {{.NAMESPACE}} create job "${job_name}" --from="cronjob/{{.RELEASE}}-dataset"
+        deadline=$(( $(date +%s) + 1800 ))
+        while true; do
+          complete="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)"
+          failed="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.failed}' 2>/dev/null || true)"
+          if [ "${complete:-0}" -ge 1 ]; then
+            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300
+            exit 0
+          fi
+          if [ "${failed:-0}" -ge 1 ]; then
+            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300 || true
+            exit 1
+          fi
+          if [ "$(date +%s)" -ge "${deadline}" ]; then
+            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300 || true
+            printf 'Timed out waiting for job/%s.\n' "${job_name}" >&2
+            exit 1
+          fi
+          sleep 3
+        done
+
+  run:
+    desc: 배포된 loadtest CronJob template에서 수동 Job을 1회 생성하고 로그를 출력합니다.
+    cmds:
+      - |
+        set -eu
+        job_name="{{.RELEASE}}-manual-$(date -u +%Y%m%d%H%M%S)"
+        {{.KUBECTL}} -n {{.NAMESPACE}} create job "${job_name}" --from="cronjob/{{.RELEASE}}"
+        deadline=$(( $(date +%s) + 1200 ))
+        while true; do
+          complete="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)"
+          failed="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.failed}' 2>/dev/null || true)"
+          if [ "${complete:-0}" -ge 1 ]; then
+            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300
+            exit 0
+          fi
+          if [ "${failed:-0}" -ge 1 ]; then
+            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300 || true
+            exit 1
+          fi
+          if [ "$(date +%s)" -ge "${deadline}" ]; then
+            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=300 || true
+            printf 'Timed out waiting for job/%s.\n' "${job_name}" >&2
+            exit 1
+          fi
+          sleep 3
+        done
+
+  logs:
+    desc: 최근 loadtest runner 로그를 봅니다.
+    cmds:
+      - '{{.KUBECTL}} -n {{.NAMESPACE}} logs -l app.kubernetes.io/name=read-api-loadtest --tail=300 --prefix=true'
+
+  status:
+    desc: Read API loadtest Helm release와 CronJob 상태를 봅니다.
+    cmds:
+      - '{{.HELM}} status {{.RELEASE}} --namespace {{.NAMESPACE}}'
+      - '{{.KUBECTL}} -n {{.NAMESPACE}} get cronjob,job,pod -l app.kubernetes.io/name=read-api-loadtest'
+
+  clean:
+    desc: Read API loadtest Helm release를 제거합니다.
+    cmds:
+      - '{{.HELM}} uninstall {{.RELEASE}} --namespace {{.NAMESPACE}} --ignore-not-found'
+
+  down:
+    desc: clean의 별칭입니다.
+    cmds:
+      - task: clean

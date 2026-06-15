@@ -1,0 +1,123 @@
+environment: local
+
+nameOverride: ""
+fullnameOverride: ""
+
+namespace:
+  create: true
+  name: loadtest
+
+image:
+  registry: localhost:5001
+  repository: read-api-loadtest
+  tag: dev
+  pullPolicy: Always
+  pullSecrets: []
+
+serviceAccount:
+  create: true
+  name: read-api-loadtest-runner
+
+cronJob:
+  enabled: true
+  suspend: true
+  schedule: "0 */6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 6
+  activeDeadlineSeconds: 900
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+
+dataset:
+  scenario: setup-read-dataset
+  credentialsSecretName: read-api-loadtest-credentials
+  profile: read-api-basic
+  revision: v1
+  titlePrefix: Medikong Loadtest
+  venuePrefix: Loadtest Hall
+  concerts: 20
+  performancesPerConcert: 2
+  seatSections: 1
+  seatRows: 10
+  seatsPerRow: 30
+  lookaheadDays: 14
+  startsAtSpacingMinutes: 180
+  discoveryLimit: 200
+  timeoutSeconds: 15
+  requestPrefix: loadtest-dataset
+  cronJob:
+    enabled: true
+    suspend: true
+    schedule: "5 */6 * * *"
+    concurrencyPolicy: Forbid
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 6
+    activeDeadlineSeconds: 1800
+    backoffLimit: 0
+    ttlSecondsAfterFinished: 86400
+
+syncJobs:
+  dataset:
+    enabled: false
+    hook: PostSync
+    hookWeight: "0"
+    activeDeadlineSeconds: 1800
+    backoffLimit: 0
+    ttlSecondsAfterFinished: 86400
+  read:
+    enabled: false
+    hook: PostSync
+    hookWeight: "10"
+    activeDeadlineSeconds: 900
+    backoffLimit: 0
+    ttlSecondsAfterFinished: 86400
+
+manualRuns:
+  dataset:
+    enabled: false
+    runId: ""
+    activeDeadlineSeconds: 1800
+    backoffLimit: 0
+    ttlSecondsAfterFinished: 86400
+  read:
+    enabled: false
+    runId: ""
+    activeDeadlineSeconds: 900
+    backoffLimit: 0
+    ttlSecondsAfterFinished: 86400
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+loadtest:
+  testType: loadtest
+  scenario: read-api-baseline
+  target: local
+  baseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+  localBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+  awsBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+  timeoutSeconds: 10
+  requestPrefix: loadtest
+  vus: 5
+  duration: 2m
+  gracefulStop: 30s
+  concertLimit: 50
+  performanceLimit: 50
+  seatLimit: 200
+  thresholds:
+    httpReqFailedRate: "0.01"
+    httpReqDurationP95Ms: "500"
+    httpReqDurationP99Ms: "1000"
+    checksRate: "0.99"
+
+k6:
+  output: ""
+  extraArgs: []
+
+extraEnv: []

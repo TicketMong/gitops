@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "read-api-loadtest.fullname" . | quote }}
+  namespace: {{ include "read-api-loadtest.namespace" . | quote }}
+  labels:
+{{ include "read-api-loadtest.labels" . | indent 4 }}
+data:
+  LOADTEST_TEST_TYPE: {{ required "loadtest.testType is required" .Values.loadtest.testType | quote }}
+  LOADTEST_SCENARIO: {{ required "loadtest.scenario is required" .Values.loadtest.scenario | quote }}
+  LOADTEST_TARGET: {{ required "loadtest.target is required" .Values.loadtest.target | quote }}
+  LOADTEST_BASE_URL: {{ required "loadtest.baseUrl is required" .Values.loadtest.baseUrl | quote }}
+  LOADTEST_LOCAL_BASE_URL: {{ .Values.loadtest.localBaseUrl | quote }}
+  LOADTEST_AWS_BASE_URL: {{ .Values.loadtest.awsBaseUrl | quote }}
+  LOADTEST_TIMEOUT_SECONDS: {{ .Values.loadtest.timeoutSeconds | quote }}
+  LOADTEST_REQUEST_PREFIX: {{ .Values.loadtest.requestPrefix | quote }}
+  LOADTEST_VUS: {{ .Values.loadtest.vus | quote }}
+  LOADTEST_DURATION: {{ .Values.loadtest.duration | quote }}
+  LOADTEST_GRACEFUL_STOP: {{ .Values.loadtest.gracefulStop | quote }}
+  LOADTEST_CONCERT_LIMIT: {{ .Values.loadtest.concertLimit | quote }}
+  LOADTEST_PERFORMANCE_LIMIT: {{ .Values.loadtest.performanceLimit | quote }}
+  LOADTEST_SEAT_LIMIT: {{ .Values.loadtest.seatLimit | quote }}
+  LOADTEST_THRESHOLD_HTTP_REQ_FAILED_RATE: {{ .Values.loadtest.thresholds.httpReqFailedRate | quote }}
+  LOADTEST_THRESHOLD_HTTP_REQ_DURATION_P95_MS: {{ .Values.loadtest.thresholds.httpReqDurationP95Ms | quote }}
+  LOADTEST_THRESHOLD_HTTP_REQ_DURATION_P99_MS: {{ .Values.loadtest.thresholds.httpReqDurationP99Ms | quote }}
+  LOADTEST_THRESHOLD_CHECKS_RATE: {{ .Values.loadtest.thresholds.checksRate | quote }}
+  LOADTEST_DATASET_PROFILE: {{ .Values.dataset.profile | quote }}
+  LOADTEST_DATASET_REVISION: {{ .Values.dataset.revision | quote }}
+  LOADTEST_DATASET_TITLE_PREFIX: {{ .Values.dataset.titlePrefix | quote }}
+  LOADTEST_DATASET_VENUE_PREFIX: {{ .Values.dataset.venuePrefix | quote }}
+  LOADTEST_DATASET_CONCERTS: {{ .Values.dataset.concerts | quote }}
+  LOADTEST_DATASET_PERFORMANCES_PER_CONCERT: {{ .Values.dataset.performancesPerConcert | quote }}
+  LOADTEST_DATASET_SEAT_SECTIONS: {{ .Values.dataset.seatSections | quote }}
+  LOADTEST_DATASET_SEAT_ROWS: {{ .Values.dataset.seatRows | quote }}
+  LOADTEST_DATASET_SEATS_PER_ROW: {{ .Values.dataset.seatsPerRow | quote }}
+  LOADTEST_DATASET_LOOKAHEAD_DAYS: {{ .Values.dataset.lookaheadDays | quote }}
+  LOADTEST_DATASET_STARTS_AT_SPACING_MINUTES: {{ .Values.dataset.startsAtSpacingMinutes | quote }}
+  LOADTEST_DATASET_DISCOVERY_LIMIT: {{ .Values.dataset.discoveryLimit | quote }}
+  K6_OUTPUT: {{ .Values.k6.output | quote }}
