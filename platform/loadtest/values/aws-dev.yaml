@@ -61,7 +61,12 @@ scenarios:
       httpReqDurationP99Ms: "1500"
       checksRate: "0.99"
   reservationJourney:
+    executor: ramping-vus
     vus: 2
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 10
+    maxVUs: 20
     duration: 6m
     stages:
       - duration: 2m

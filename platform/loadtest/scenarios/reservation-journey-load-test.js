@@ -40,7 +40,34 @@ function iterationConfig() {
 }
 
 function executorConfig() {
-  if (config.stages.length > 0) {
+  if (config.executor === 'ramping-arrival-rate') {
+    if (config.stages.length === 0) {
+      throw new Error('LOADTEST_RESERVATION_JOURNEY_STAGES is required for ramping-arrival-rate');
+    }
+    return {
+      executor: 'ramping-arrival-rate',
+      timeUnit: config.timeUnit,
+      preAllocatedVUs: config.preAllocatedVUs,
+      maxVUs: config.maxVUs,
+      stages: config.stages,
+      gracefulStop: config.gracefulStop,
+    };
+  }
+  if (config.executor === 'constant-arrival-rate') {
+    return {
+      executor: 'constant-arrival-rate',
+      rate: config.rate,
+      timeUnit: config.timeUnit,
+      duration: config.duration,
+      preAllocatedVUs: config.preAllocatedVUs,
+      maxVUs: config.maxVUs,
+      gracefulStop: config.gracefulStop,
+    };
+  }
+  if (config.executor === 'ramping-vus') {
+    if (config.stages.length === 0) {
+      throw new Error('LOADTEST_RESERVATION_JOURNEY_STAGES is required for ramping-vus');
+    }
     return {
       executor: 'ramping-vus',
       stages: config.stages,

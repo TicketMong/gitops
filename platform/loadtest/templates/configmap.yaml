@@ -40,7 +40,12 @@ data:
   LOADTEST_READ_API_THRESHOLD_CHECKS_RATE: {{ .Values.scenarios.readApiBaseline.thresholds.checksRate | quote }}
   LOADTEST_RESERVATION_JOURNEY_REQUEST_PREFIX: {{ .Values.scenarios.reservationJourney.requestPrefix | quote }}
   LOADTEST_RESERVATION_JOURNEY_TIMEOUT_SECONDS: {{ .Values.scenarios.reservationJourney.timeoutSeconds | quote }}
+  LOADTEST_RESERVATION_JOURNEY_EXECUTOR: {{ .Values.scenarios.reservationJourney.executor | quote }}
   LOADTEST_RESERVATION_JOURNEY_VUS: {{ .Values.scenarios.reservationJourney.vus | quote }}
+  LOADTEST_RESERVATION_JOURNEY_RATE: {{ .Values.scenarios.reservationJourney.rate | quote }}
+  LOADTEST_RESERVATION_JOURNEY_TIME_UNIT: {{ .Values.scenarios.reservationJourney.timeUnit | quote }}
+  LOADTEST_RESERVATION_JOURNEY_PRE_ALLOCATED_VUS: {{ .Values.scenarios.reservationJourney.preAllocatedVUs | quote }}
+  LOADTEST_RESERVATION_JOURNEY_MAX_VUS: {{ .Values.scenarios.reservationJourney.maxVUs | quote }}
   LOADTEST_RESERVATION_JOURNEY_DURATION: {{ .Values.scenarios.reservationJourney.duration | quote }}
   LOADTEST_RESERVATION_JOURNEY_STAGES: {{ toJson .Values.scenarios.reservationJourney.stages | quote }}
   LOADTEST_RESERVATION_JOURNEY_GRACEFUL_STOP: {{ .Values.scenarios.reservationJourney.gracefulStop | quote }}

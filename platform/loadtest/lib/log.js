@@ -52,7 +52,12 @@ export function logExperimentConditions(config, phase) {
     image_tag: config.imageTag,
     release: config.release,
     namespace: config.namespace,
+    executor: config.executor,
     vus: config.vus,
+    rate: config.rate,
+    time_unit: config.timeUnit,
+    pre_allocated_vus: config.preAllocatedVUs,
+    max_vus: config.maxVUs,
     duration: config.duration,
     stages: config.stages,
     graceful_stop: config.gracefulStop,
@@ -82,7 +87,10 @@ export function logRunStarted(config) {
     scenario: config.scenario,
     target: config.target,
     target_base_url: config.baseUrl,
+    executor: config.executor,
     vus: config.vus,
+    rate: config.rate,
+    time_unit: config.timeUnit,
     duration: config.duration,
   });
 }

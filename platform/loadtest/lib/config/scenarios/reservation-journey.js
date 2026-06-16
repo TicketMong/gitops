@@ -1,15 +1,30 @@
 import { nonNegativeNumber, optional, positiveInteger, positiveNumber, rate, parseStages } from '../env.js';
 
+const EXECUTORS = new Set(['constant-vus', 'ramping-vus', 'constant-arrival-rate', 'ramping-arrival-rate']);
+
 export function getReservationJourneyConfig() {
+  const executor = optional('LOADTEST_RESERVATION_JOURNEY_EXECUTOR', 'ramping-vus');
+  if (!EXECUTORS.has(executor)) {
+    throw new Error(`LOADTEST_RESERVATION_JOURNEY_EXECUTOR must be one of ${Array.from(EXECUTORS).join(', ')}`);
+  }
   const vus = positiveInteger('LOADTEST_RESERVATION_JOURNEY_VUS', 5);
+  const ratePerTimeUnit = positiveInteger('LOADTEST_RESERVATION_JOURNEY_RATE', 1);
+  const preAllocatedVus = positiveInteger('LOADTEST_RESERVATION_JOURNEY_PRE_ALLOCATED_VUS', Math.max(vus, 10));
+  const maxVus = positiveInteger('LOADTEST_RESERVATION_JOURNEY_MAX_VUS', Math.max(vus, preAllocatedVus));
   const stages = parseStages('LOADTEST_RESERVATION_JOURNEY_STAGES');
+  const stageMax = Math.max(0, ...stages.map((stage) => stage.target));
 
   return {
+    executor,
     requestPrefix: optional('LOADTEST_RESERVATION_JOURNEY_REQUEST_PREFIX', 'loadtest-reservation'),
     requestIdBase: '',
     timeoutSeconds: positiveNumber('LOADTEST_RESERVATION_JOURNEY_TIMEOUT_SECONDS', 10),
     vus,
-    plannedMaxVus: Math.max(vus, ...stages.map((stage) => stage.target)),
+    rate: ratePerTimeUnit,
+    timeUnit: optional('LOADTEST_RESERVATION_JOURNEY_TIME_UNIT', '1s'),
+    preAllocatedVUs: preAllocatedVus,
+    maxVUs: maxVus,
+    plannedMaxVus: Math.max(vus, maxVus, stageMax),
     duration: optional('LOADTEST_RESERVATION_JOURNEY_DURATION', '2m'),
     stages,
     gracefulStop: optional('LOADTEST_RESERVATION_JOURNEY_GRACEFUL_STOP', '30s'),

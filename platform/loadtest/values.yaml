@@ -145,7 +145,12 @@ scenarios:
   reservationJourney:
     requestPrefix: loadtest-reservation
     timeoutSeconds: 10
+    executor: ramping-vus
     vus: 5
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 10
+    maxVUs: 20
     duration: 2m
     stages:
       - duration: 1m

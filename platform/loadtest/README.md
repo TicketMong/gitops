@@ -90,7 +90,7 @@ values/scenarios/reservation-journey-load-test.yaml
 ```
 
 조회 기준선의 VU, duration, stages, read limit, threshold는 `scenarios.readApiBaseline`에서만 조절한다.
-예매 여정의 VU, duration, stages, polling, 결제 금액, 좌석 재시도, threshold는 `scenarios.reservationJourney`에서만 조절한다.
+예매 여정의 executor, rate, VU 한도, duration, stages, polling, 결제 금액, 좌석 재시도, threshold는 `scenarios.reservationJourney`에서만 조절한다.
 dataset setup 조건은 `dataset` 아래에 두고, fresh pool은 `dataset.revision` 또는 `dataset.customerPool.revision`으로 분리한다.
 
 ## Commands
@@ -101,9 +101,13 @@ aws-dev는 GitOps sync와 Kubernetes CronJob이 dataset 준비와 read baseline 
 
 로컬에서는 개발 편의를 위해 Taskfile 명령으로 직접 실행한다.
 `dev:loadtest`는 로컬 registry, Secret, image, Helm release를 준비한 뒤 dataset setup과 선택한 시나리오를 순차 실행한다.
+기본 실행은 Job 완료만 기다리고 runner 로그를 follow하지 않는다.
+실행 중 로그가 필요하면 별도 터미널에서 `task --dir gitops/platform/loadtest logs`를 사용한다.
 배포만 필요하면 `dev:loadtest:deploy`를 사용한다.
 공개 concert ingress는 Kong rate limit이 `minute: 120`으로 설정되어 있으므로, 기본 local/aws-dev values는 `thinkTimeSeconds`를 둬 한도 안에서 기준선을 확인한다.
-예매 여정 부하테스트는 한계 지점을 보기 위해 `thinkTimeSeconds: 0`, 최대 50 VU ramp로 실행한다.
+예매 여정 부하테스트는 한계 지점을 보기 위해 `thinkTimeSeconds: 0`과 k6 `ramping-arrival-rate`를 사용한다.
+이때 `stages[].target`은 HTTP RPS가 아니라 초당 예매 여정 시작 수다.
+한 예매 여정은 login, 공연/회차/좌석 조회, 예약 생성, 결제 승인, 티켓 조회를 포함하므로 실제 HTTP RPS는 target보다 크다.
 로컬에서 `reservation-journey-load-test`를 실행하면 기본적으로 `ticketing-rate-limit-*` Kong plugin의 `minute` 값을 크게 올리고, 명령 종료 시 기본값 `120`으로 되돌린다.
 Kong rate limit을 포함한 제품 경로 기준선을 보려면 `LOADTEST_DISABLE_KONG_RATE_LIMIT=false`를 명시한다.
 
@@ -172,7 +176,12 @@ dataset:
     revision: reservation-20260615-001
 scenarios:
   reservationJourney:
+    executor: ramping-arrival-rate
     requestPrefix: loadtest-reservation
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 20
+    maxVUs: 100
     stages:
       - duration: 2m
         target: 2

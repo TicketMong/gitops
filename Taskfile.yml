@@ -107,12 +107,12 @@ tasks:
       - task: loadtest:deploy
 
   dev:loadtest:setup-dataset:
-    desc: 배포된 read API loadtest dataset CronJob에서 로컬 수동 Job을 1회 실행하고 로그를 봅니다.
+    desc: 배포된 read API loadtest dataset CronJob에서 로컬 수동 Job을 1회 실행하고 완료를 기다립니다.
     cmds:
       - task: loadtest:setup-dataset
 
   dev:loadtest:run:
-    desc: 배포된 read API loadtest CronJob에서 수동 Job을 1회 실행하고 로그를 봅니다.
+    desc: 배포된 read API loadtest CronJob에서 수동 Job을 1회 실행하고 완료를 기다립니다.
     cmds:
       - task: loadtest:run
 

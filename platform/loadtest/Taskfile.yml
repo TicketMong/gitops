@@ -192,53 +192,25 @@ tasks:
         done
 
   setup-dataset:
-    desc: 배포된 dataset CronJob template에서 로컬 수동 Job을 1회 생성하고 로그를 출력합니다.
+    desc: 배포된 dataset CronJob template에서 로컬 수동 Job을 1회 생성하고 완료를 기다립니다.
     cmds:
       - |
         set -eu
         job_name="{{.RELEASE}}-dataset-manual-$(date -u +%Y%m%d%H%M%S)"
         {{.KUBECTL}} -n {{.NAMESPACE}} create job "${job_name}" --from="cronjob/{{.RELEASE}}-dataset"
-        pod_name=""
-        for _ in $(seq 1 60); do
-          pod_name="$({{.KUBECTL}} -n {{.NAMESPACE}} get pod -l job-name="${job_name}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
-          if [ -n "${pod_name}" ]; then
-            break
-          fi
-          sleep 1
-        done
-        logs_pid=""
-        if [ -n "${pod_name}" ]; then
-          container_id=""
-          phase=""
-          for _ in $(seq 1 60); do
-            container_id="$({{.KUBECTL}} -n {{.NAMESPACE}} get pod "${pod_name}" -o jsonpath='{.status.containerStatuses[?(@.name=="runner")].containerID}' 2>/dev/null || true)"
-            phase="$({{.KUBECTL}} -n {{.NAMESPACE}} get pod "${pod_name}" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
-            if [ -n "${container_id}" ] || [ "${phase}" = "Succeeded" ] || [ "${phase}" = "Failed" ]; then
-              break
-            fi
-            sleep 1
-          done
-          if [ -n "${container_id}" ] || [ "${phase}" = "Succeeded" ] || [ "${phase}" = "Failed" ]; then
-            {{.KUBECTL}} -n {{.NAMESPACE}} logs -f "pod/${pod_name}" --tail=20 &
-            logs_pid="$!"
-            trap 'if [ -n "${logs_pid:-}" ]; then kill "${logs_pid}" 2>/dev/null || true; fi' EXIT
-          fi
-        fi
         deadline=$(( $(date +%s) + 1800 ))
         while true; do
           complete="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)"
           failed="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.failed}' 2>/dev/null || true)"
           if [ "${failed:-0}" -ge 1 ]; then
-            if [ -n "${logs_pid}" ]; then kill "${logs_pid}" 2>/dev/null || true; fi
             {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=120 || true
             exit 1
           fi
           if [ "${complete:-0}" -ge 1 ]; then
-            if [ -n "${logs_pid}" ]; then kill "${logs_pid}" 2>/dev/null || true; fi
+            printf 'Dataset setup Job completed job=%s\n' "${job_name}"
             exit 0
           fi
           if [ "$(date +%s)" -ge "${deadline}" ]; then
-            if [ -n "${logs_pid}" ]; then kill "${logs_pid}" 2>/dev/null || true; fi
             {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=120 || true
             printf 'Timed out waiting for job/%s.\n' "${job_name}" >&2
             exit 1
@@ -247,7 +219,7 @@ tasks:
         done
 
   run:
-    desc: 배포된 loadtest CronJob template에서 수동 Job을 1회 생성하고 로그를 출력합니다.
+    desc: 배포된 loadtest CronJob template에서 수동 Job을 1회 생성하고 완료를 기다립니다.
     cmds:
       - |
         set -eu
@@ -260,47 +232,19 @@ tasks:
         job_name="${job_base}-${timestamp}"
         printf 'Creating loadtest Job scenario=%s job=%s\n' "${scenario}" "${job_name}"
         {{.KUBECTL}} -n {{.NAMESPACE}} create job "${job_name}" --from="cronjob/{{.RELEASE}}"
-        pod_name=""
-        for _ in $(seq 1 60); do
-          pod_name="$({{.KUBECTL}} -n {{.NAMESPACE}} get pod -l job-name="${job_name}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
-          if [ -n "${pod_name}" ]; then
-            break
-          fi
-          sleep 1
-        done
-        logs_pid=""
-        if [ -n "${pod_name}" ]; then
-          container_id=""
-          phase=""
-          for _ in $(seq 1 60); do
-            container_id="$({{.KUBECTL}} -n {{.NAMESPACE}} get pod "${pod_name}" -o jsonpath='{.status.containerStatuses[?(@.name=="runner")].containerID}' 2>/dev/null || true)"
-            phase="$({{.KUBECTL}} -n {{.NAMESPACE}} get pod "${pod_name}" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
-            if [ -n "${container_id}" ] || [ "${phase}" = "Succeeded" ] || [ "${phase}" = "Failed" ]; then
-              break
-            fi
-            sleep 1
-          done
-          if [ -n "${container_id}" ] || [ "${phase}" = "Succeeded" ] || [ "${phase}" = "Failed" ]; then
-            {{.KUBECTL}} -n {{.NAMESPACE}} logs -f "pod/${pod_name}" --tail=20 &
-            logs_pid="$!"
-            trap 'if [ -n "${logs_pid:-}" ]; then kill "${logs_pid}" 2>/dev/null || true; fi' EXIT
-          fi
-        fi
         deadline=$(( $(date +%s) + 1200 ))
         while true; do
           complete="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)"
           failed="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.failed}' 2>/dev/null || true)"
           if [ "${failed:-0}" -ge 1 ]; then
-            if [ -n "${logs_pid}" ]; then kill "${logs_pid}" 2>/dev/null || true; fi
             {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=120 || true
             exit 1
           fi
           if [ "${complete:-0}" -ge 1 ]; then
-            if [ -n "${logs_pid}" ]; then kill "${logs_pid}" 2>/dev/null || true; fi
+            printf 'Loadtest Job completed job=%s\n' "${job_name}"
             exit 0
           fi
           if [ "$(date +%s)" -ge "${deadline}" ]; then
-            if [ -n "${logs_pid}" ]; then kill "${logs_pid}" 2>/dev/null || true; fi
             {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=120 || true
             printf 'Timed out waiting for job/%s.\n' "${job_name}" >&2
             exit 1

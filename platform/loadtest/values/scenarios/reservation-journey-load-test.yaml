@@ -10,15 +10,20 @@ dataset:
 scenarios:
   reservationJourney:
     requestPrefix: loadtest-reservation
+    executor: ramping-arrival-rate
     vus: 50
+    rate: 5
+    timeUnit: 1s
+    preAllocatedVUs: 50
+    maxVUs: 200
     duration: 6m
     stages:
       - duration: 1m
-        target: 10
+        target: 5
       - duration: 2m
-        target: 25
+        target: 10
       - duration: 3m
-        target: 50
+        target: 20
     thinkTimeSeconds: 0
     thresholds:
       httpReqFailedRate: "0.01"
