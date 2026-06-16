@@ -3,7 +3,7 @@ fullnameOverride: opentelemetry-collector
 
 image:
   repository: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/otel/opentelemetry-collector-contrib
-  tag: 0.153.0
+  tag: 0.153.0-amd64
   pullPolicy: IfNotPresent
 
 imagePullSecrets:
