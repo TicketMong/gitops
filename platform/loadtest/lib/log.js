@@ -201,6 +201,7 @@ export function summaryLine(data) {
     event: 'loadtest_summary',
     timestamp: new Date().toISOString(),
     test_type: 'loadtest',
+    loadtest_run_id: __ENV.LOADTEST_RUN_ID || null,
     scenario: __ENV.LOADTEST_SCENARIO || 'read-api-baseline',
     target: __ENV.LOADTEST_TARGET || 'local',
     http_req_duration_p95_ms: metricValue(metrics, 'http_req_duration', 'p(95)'),

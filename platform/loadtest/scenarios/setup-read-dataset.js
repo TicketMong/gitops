@@ -4,6 +4,7 @@ import { Rate } from 'k6/metrics';
 import { loginAdmin, loginProvider } from '../lib/auth.js';
 import { getConfig, requireDatasetCredentials } from '../lib/config.js';
 import { logDatasetFinished, logExperimentConditions, logRunFailed, logRunStarted } from '../lib/log.js';
+import { summaryOutput } from '../lib/report.js';
 import { setupDatasetProfile } from '../flows/dataset.js';
 
 const config = getConfig();
@@ -61,4 +62,8 @@ export default function setupDataset() {
     logRunFailed(config, 'setup_read_dataset', error);
     throw error;
   }
+}
+
+export function handleSummary(data) {
+  return summaryOutput(config, data);
 }

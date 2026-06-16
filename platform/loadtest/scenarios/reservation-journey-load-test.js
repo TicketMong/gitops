@@ -9,9 +9,9 @@ import {
   logRunFailed,
   logRunFinished,
   logRunStarted,
-  summaryLine,
 } from '../lib/log.js';
 import { requireField } from '../lib/pick.js';
+import { summaryOutput } from '../lib/report.js';
 import {
   approvePayment,
   createReservationWithSeatRetry,
@@ -223,7 +223,5 @@ export default function reservationJourneyLoadTest() {
 }
 
 export function handleSummary(data) {
-  return {
-    stdout: `${summaryLine(data)}\n`,
-  };
+  return summaryOutput(config, data);
 }

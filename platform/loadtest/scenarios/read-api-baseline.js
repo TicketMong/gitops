@@ -8,9 +8,9 @@ import {
   logRunFailed,
   logRunFinished,
   logRunStarted,
-  summaryLine,
 } from '../lib/log.js';
 import { itemsFrom, pickByIteration, requireField } from '../lib/pick.js';
+import { summaryOutput } from '../lib/report.js';
 
 const config = getConfig();
 const readIterationSuccess = new Rate('loadtest_read_iteration_success');
@@ -129,7 +129,5 @@ export default function readApiBaseline() {
 }
 
 export function handleSummary(data) {
-  return {
-    stdout: `${summaryLine(data)}\n`,
-  };
+  return summaryOutput(config, data);
 }

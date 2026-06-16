@@ -104,6 +104,11 @@ aws-dev는 GitOps sync와 Kubernetes CronJob이 dataset 준비와 read baseline 
 기본 실행은 Job 완료만 기다리고 runner 로그를 follow하지 않는다.
 실행 중 로그가 필요하면 별도 터미널에서 `task --dir gitops/platform/loadtest logs`를 사용한다.
 배포만 필요하면 `dev:loadtest:deploy`를 사용한다.
+k6를 로컬 프로세스로 바로 실행할 때는 `local-report`를 사용한다.
+실행 결과는 gitignore 되는 `reports/local/{run_id}/`에 `metadata.json`, `summary.json`, `report.html`, `report.md`로 남고, `reports/local/latest`가 최근 결과를 가리킨다.
+`run_id`는 UTC timestamp, scenario, short git SHA로 만든다.
+이 값은 artifact, metadata, log에서만 쓰고 Prometheus metric label/tag에는 넣지 않는다.
+S3 업로드와 AWS 장기 보관은 이번 단계에 포함하지 않는다.
 공개 concert ingress는 Kong rate limit이 `minute: 120`으로 설정되어 있으므로, 기본 local/aws-dev values는 `thinkTimeSeconds`를 둬 한도 안에서 기준선을 확인한다.
 예매 여정 부하테스트는 한계 지점을 보기 위해 `thinkTimeSeconds: 0`과 k6 `ramping-arrival-rate`를 사용한다.
 이때 `stages[].target`은 HTTP RPS가 아니라 초당 예매 여정 시작 수다.
@@ -120,6 +125,8 @@ task --dir gitops/platform/loadtest lint
 task --dir gitops/platform/loadtest render
 LOADTEST_VALUES_FILE=values/aws-dev.yaml task --dir gitops/platform/loadtest render
 LOADTEST_SCENARIO_VALUES_FILE=values/scenarios/reservation-journey-load-test.yaml task --dir gitops/platform/loadtest render
+task --dir gitops/platform/loadtest local-report LOADTEST_BASE_URL=http://localhost LOADTEST_VUS=5 LOADTEST_DURATION=1m
+task --dir gitops/platform/loadtest local-report-smoke
 SCENARIO=reservation-journey-load-test task --dir gitops/platform/loadtest run-local
 LOADTEST_DISABLE_KONG_RATE_LIMIT=false SCENARIO=reservation-journey-load-test task --dir gitops/platform/loadtest run-local
 task --dir gitops/platform/loadtest kong-rate-limit:status

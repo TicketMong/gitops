@@ -4,6 +4,7 @@ vars:
   HELM: '{{default "helm" .HELM}}'
   KUBECTL: '{{default "kubectl" .KUBECTL}}'
   DOCKER: '{{default "docker" .DOCKER}}'
+  K6: '{{default "k6" .K6}}'
   RELEASE: '{{default "read-api-loadtest" .LOADTEST_RELEASE}}'
   NAMESPACE: '{{default "loadtest" .LOADTEST_NAMESPACE}}'
   IMAGE_REGISTRY: '{{default "localhost:5001" .DEV_REGISTRY}}'
@@ -12,6 +13,11 @@ vars:
   IMAGE_TAG: '{{default "dev" .DEV_IMAGE_TAG}}'
   VALUES_FILE: '{{default "values/local.yaml" .LOADTEST_VALUES_FILE}}'
   CREDENTIALS_SECRET: '{{default "read-api-loadtest-credentials" .LOADTEST_CREDENTIALS_SECRET}}'
+  LOADTEST_LOCAL_SCENARIO: '{{default "read-api-baseline" .LOADTEST_SCENARIO}}'
+  LOADTEST_LOCAL_BASE_URL: '{{default "http://localhost" .LOADTEST_BASE_URL}}'
+  LOADTEST_LOCAL_VUS: '{{default "1" .LOADTEST_VUS}}'
+  LOADTEST_LOCAL_DURATION: '{{default "30s" .LOADTEST_DURATION}}'
+  LOADTEST_REPORT_ROOT: '{{default "reports/local" .LOADTEST_REPORT_ROOT}}'
   KONG_RATE_LIMIT_PLUGINS: '{{default "ticketing-rate-limit-concerts ticketing-rate-limit-reservations ticketing-rate-limit-payments ticketing-rate-limit-tickets ticketing-rate-limit-notifications" .LOADTEST_KONG_RATE_LIMIT_PLUGINS}}'
   KONG_RATE_LIMIT_DEFAULT_MINUTE: '{{default "120" .LOADTEST_KONG_RATE_LIMIT_DEFAULT_MINUTE}}'
   KONG_RATE_LIMIT_DISABLED_MINUTE: '{{default "1000000" .LOADTEST_KONG_RATE_LIMIT_DISABLED_MINUTE}}'
@@ -80,6 +86,79 @@ tasks:
         set -eu
         image_ref="$(task image-ref --silent)"
         {{.DOCKER}} push "${image_ref}"
+
+  local-report:
+    desc: k6를 직접 실행하고 reports/local/{run_id}에 로컬 보고서를 생성합니다. SCENARIO=<scenario-name>
+    cmds:
+      - |
+        set -eu
+        k6_cmd="${K6:-{{.K6}}}"
+        if ! command -v "${k6_cmd}" >/dev/null 2>&1; then
+          printf '%s\n' "${k6_cmd} command not found. Install k6 or set K6=/path/to/k6." >&2
+          exit 2
+        fi
+
+        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-{{default .LOADTEST_LOCAL_SCENARIO .SCENARIO}}}}"
+        scenario_path="scenarios/${scenario}.js"
+        if [ ! -f "${scenario_path}" ]; then
+          printf 'Unknown or missing scenario file: %s\n' "${scenario_path}" >&2
+          exit 2
+        fi
+
+        base_url="${LOADTEST_BASE_URL:-${LOADTEST_LOCAL_BASE_URL:-{{.LOADTEST_LOCAL_BASE_URL}}}}"
+        vus="${LOADTEST_VUS:-{{.LOADTEST_LOCAL_VUS}}}"
+        duration="${LOADTEST_DURATION:-{{.LOADTEST_LOCAL_DURATION}}}"
+        report_root="${LOADTEST_REPORT_ROOT:-{{.LOADTEST_REPORT_ROOT}}}"
+        scenario_slug="$(printf '%s' "${scenario}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-' | sed 's/--*/-/g; s/^-//; s/-$//' | cut -c1-40)"
+        scenario_slug="${scenario_slug:-loadtest}"
+        git_sha="$(git rev-parse --short HEAD)"
+        timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+        started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        run_id="${timestamp}-${scenario_slug}-${git_sha}"
+        report_dir="${report_root}/${run_id}"
+        mkdir -p "${report_dir}"
+
+        case "${scenario}" in
+          read-api-baseline)
+            export LOADTEST_READ_API_VUS="${LOADTEST_READ_API_VUS:-${vus}}"
+            export LOADTEST_READ_API_DURATION="${LOADTEST_READ_API_DURATION:-${duration}}"
+            ;;
+          reservation-journey-load-test)
+            export LOADTEST_RESERVATION_JOURNEY_VUS="${LOADTEST_RESERVATION_JOURNEY_VUS:-${vus}}"
+            export LOADTEST_RESERVATION_JOURNEY_DURATION="${LOADTEST_RESERVATION_JOURNEY_DURATION:-${duration}}"
+            ;;
+          report-smoke)
+            export LOADTEST_VUS="${vus}"
+            export LOADTEST_DURATION="${duration}"
+            ;;
+        esac
+
+        printf 'Running local k6 scenario=%s run_id=%s report_dir=%s\n' "${scenario}" "${run_id}" "${report_dir}"
+        set +e
+        LOADTEST_RUN_ID="${run_id}" \
+        LOADTEST_SCENARIO="${scenario}" \
+        LOADTEST_TARGET=local \
+        LOADTEST_ENVIRONMENT=local \
+        LOADTEST_BASE_URL="${base_url}" \
+        LOADTEST_GIT_SHA="${git_sha}" \
+        LOADTEST_STARTED_AT="${started_at}" \
+        LOADTEST_REPORT_DIR="${report_dir}" \
+          "${k6_cmd}" run "${scenario_path}"
+        exit_code="$?"
+        set -e
+
+        if [ -d "${report_dir}" ]; then
+          rm -f "${report_root}/latest"
+          ln -s "${run_id}" "${report_root}/latest"
+          printf 'Loadtest report: %s\n' "${report_dir}"
+          printf 'Latest report: %s/latest\n' "${report_root}"
+        fi
+        exit "${exit_code}"
+
+  local-report-smoke:
+    desc: 서비스 호출 없이 로컬 보고서 artifact 생성을 검증합니다.
+    cmds:
+      - SCENARIO=report-smoke LOADTEST_BASE_URL=http://127.0.0.1 LOADTEST_VUS=1 LOADTEST_DURATION=1s task local-report
 
   secret-local:
     desc: 로컬 read API loadtest dataset credential Secret을 준비합니다.
