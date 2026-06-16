@@ -100,7 +100,7 @@ grafana:
     enabled: true
     type: pvc
     storageClassName: medikong-longhorn
-    size: 5Gi
+    size: 512Mi
   resources:
     requests:
       cpu: 50m
@@ -183,7 +183,7 @@ prometheus:
             - ReadWriteOnce
           resources:
             requests:
-              storage: 30Gi
+              storage: 2Gi
     # private-dev starts without a dedicated monitoring worker.
     # Keep this empty so the scheduler can place Prometheus on available workers.
     nodeSelector: {}

@@ -18,6 +18,8 @@ spec:
             defaultReplicaCount: 1
             createDefaultDiskLabeledNodes: true
             defaultDataPath: /var/lib/longhorn
+            storageReservedPercentageForDefaultDisk: 10
+            storageMinimalAvailablePercentage: 10
           preUpgradeChecker:
             jobEnabled: false
           persistence:

@@ -36,7 +36,7 @@ tempo:
 persistence:
   enabled: true
   storageClassName: medikong-longhorn
-  size: 10Gi
+  size: 1Gi
 
 nodeSelector: {}
 

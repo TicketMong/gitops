@@ -72,7 +72,7 @@ singleBinary:
   persistence:
     enabled: true
     storageClass: medikong-longhorn
-    size: 10Gi
+    size: 2Gi
   resources:
     requests:
       cpu: 50m
