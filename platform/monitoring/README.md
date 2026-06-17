@@ -170,7 +170,7 @@ Load dashboard 확인 순서:
 Load 50 - Service Resource and Traffic
   auth/concert/notification/payment/reservation/ticket의 CPU, memory, RPS, p95 latency를 2열 큰 그래프로 비교한다.
 Load 60 - k6 Runner Execution
-  특정 loadtest_run_id를 골라 runner stdout JSON으로 수집된 실험 조건, 전체 summary, API/step별 p95/p99/error/RPS/request count, 실패 로그를 한 화면에서 본다.
+  runner stdout JSON으로 남은 실험 조건과 실행 결과 원문을 확인한다. API별 상세 비교는 Grafana 패널로 분산하지 않고, 필요한 run의 JSON 로그와 서비스/Kong 지표를 함께 대조한다.
 Load 70 - Slow Trace Discovery
   Load 60에서 확인한 실험 시간 범위에 맞춰 service/route/min duration 기준의 느린 요청 trace 후보를 보고, trace_id 링크로 Tempo Explore에 바로 들어간다.
 ```

@@ -18,17 +18,6 @@ serviceAccount:
   create: true
   name: read-api-loadtest-runner
 
-cronJob:
-  enabled: true
-  suspend: true
-  schedule: "0 */6 * * *"
-  concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 3
-  failedJobsHistoryLimit: 6
-  activeDeadlineSeconds: 900
-  backoffLimit: 0
-  ttlSecondsAfterFinished: 86400
-
 dataset:
   scenario: setup-read-dataset
   credentialsSecretName: read-api-loadtest-credentials
@@ -60,17 +49,6 @@ dataset:
     httpReqDurationP95Ms: "3000"
     httpReqDurationP99Ms: "5000"
     checksRate: "0.99"
-  cronJob:
-    enabled: true
-    suspend: true
-    schedule: "5 */6 * * *"
-    concurrencyPolicy: Forbid
-    successfulJobsHistoryLimit: 3
-    failedJobsHistoryLimit: 6
-    activeDeadlineSeconds: 1800
-    backoffLimit: 0
-    ttlSecondsAfterFinished: 86400
-
 syncJobs:
   dataset:
     enabled: false

@@ -24,7 +24,7 @@ export function supportedDatasetProfiles() {
 
 export function setupDatasetProfile(config, tokens) {
   // 이 dispatcher가 fake dataset 준비의 확장 경계다. k6 scenario, Helm values,
-  // CronJob, GitOps manualRuns는 유지하고, LOADTEST_DATASET_PROFILE만 바꿔
+  // GitOps manualRuns는 유지하고, LOADTEST_DATASET_PROFILE만 바꿔
   // 실제 데이터셋 생성 방식을 선택한다.
   const setup = datasetProfiles[config.dataset.profile];
   if (!setup) {

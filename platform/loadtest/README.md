@@ -118,7 +118,7 @@ RPS, duration, VU, local/cluster 차이는 scenario 코드가 아니라 `values/
 공연/회차/좌석은 read baseline과 같은 생성 패턴을 쓰지만 `dataset.profile=reservation-journey` prefix로 분리된다.
 
 예를 들어 공연 수를 넓게 퍼뜨리는 `read-api-wide`, 좌석 맵이 큰 `large-seat-map`, 공연 회차가 많은 `many-performances` 같은 profile을 추가할 수 있다.
-이때 `setup-read-dataset` scenario, Helm template, CronJob, GitOps manualRuns는 바꾸지 않고 `dataset.profile` 값만 바꿔 실행한다.
+이때 `setup-read-dataset` scenario, Helm template, GitOps manualRuns는 바꾸지 않고 `dataset.profile` 값만 바꿔 실행한다.
 
 ```text
 provider/admin login
@@ -229,20 +229,19 @@ activeCustomerCount >= ceil(expectedJourneys / targetTicketsPerCustomer)
 
 ## Commands
 
-운영에서는 command로 Job을 만들지 않는다.
-aws-dev는 GitOps sync와 Kubernetes CronJob이 dataset 준비와 read baseline 실행을 관리한다.
-수동 실행도 `kubectl create job`이 아니라 `manualRuns.*.enabled`와 `manualRuns.*.runId` 값을 GitOps로 바꿔 선언한다.
+운영에서는 배포나 sync만으로 부하테스트를 자동 실행하지 않는다.
+aws-dev chart는 CronJob을 만들지 않고 Argo sync hook도 기본으로 꺼두며, 실험할 때만 `manualRuns.*.enabled`와 `manualRuns.*.runId` 값을 GitOps로 바꿔 선언한다.
+같은 수동 Job을 다시 만들려면 `runId`를 새 값으로 바꾼다.
+runner image는 `.github/workflows/loadtest-image-publish.yml`이 ECR에 publish하고, `values/aws-dev.yaml`의 `image.tag`를 commit SHA 기반 tag로 갱신한다.
 
 로컬에서는 개발 편의를 위해 Taskfile 명령으로 직접 실행한다.
 `dev:loadtest`는 로컬 registry, Secret, image, Helm release를 준비한 뒤 dataset setup과 선택한 시나리오를 순차 실행한다.
 기본 실행은 Job 완료만 기다리고 runner 로그를 follow하지 않는다.
 실행 중 로그가 필요하면 별도 터미널에서 `task --dir gitops/platform/loadtest logs`를 사용한다.
 배포만 필요하면 `dev:loadtest:deploy`를 사용한다.
-k6를 로컬 프로세스로 바로 실행할 때는 `local-report`를 사용한다.
-실행 결과는 gitignore 되는 `reports/local/{run_id}/`에 `metadata.json`, `summary.json`, `report.html`, `report.md`로 남고, `reports/local/latest`가 최근 결과를 가리킨다.
-`run_id`는 UTC timestamp, scenario, short git SHA로 만든다.
-이 값은 artifact, metadata, log에서만 쓰고 Prometheus metric label/tag에는 넣지 않는다.
-S3 업로드와 AWS 장기 보관은 이번 단계에 포함하지 않는다.
+실험 결과의 기준은 runner stdout JSON과 Loki/Grafana 조회이며, 로컬 report 파일은 만들지 않는다.
+`run_id`는 artifact, metadata, log에서만 쓰고 Prometheus metric label/tag에는 넣지 않는다.
+S3 업로드와 AWS 장기 보관은 포함하지 않는다.
 공개 concert ingress는 Kong rate limit이 `minute: 120`으로 설정되어 있으므로, 기본 local/aws-dev values는 `thinkTimeSeconds`를 둬 한도 안에서 기준선을 확인한다.
 예매 여정 부하테스트는 한계 지점을 보기 위해 `thinkTimeSeconds: 0`과 k6 `ramping-arrival-rate`를 사용한다.
 이때 `stages[].target`은 HTTP RPS가 아니라 초당 예매 여정 시작 수다.
@@ -274,10 +273,6 @@ LOADTEST_SCENARIO_VALUES_FILE=values/scenarios/reservation-seat-contention-load-
 PRESET=mau10k-ticket-open task --dir gitops/platform/loadtest render
 PRESET=mau10k-normal-peak SCENARIO=reservation-create-load-test task --dir gitops/platform/loadtest render
 PRESET=stress-find-limit SCENARIO=reservation-seat-contention-load-test task --dir gitops/platform/loadtest render
-task --dir gitops/platform/loadtest local-report LOADTEST_BASE_URL=http://localhost LOADTEST_VUS=5 LOADTEST_DURATION=1m
-SCENARIO=auth-login-load-test task --dir gitops/platform/loadtest local-report
-SCENARIO=ticket-service-read-load-test task --dir gitops/platform/loadtest local-report
-task --dir gitops/platform/loadtest local-report-smoke
 SCENARIO=auth-login-load-test task --dir gitops/platform/loadtest run-local
 SCENARIO=ticket-service-read-load-test task --dir gitops/platform/loadtest run-local
 SCENARIO=reservation-journey-load-test task --dir gitops/platform/loadtest run-local
@@ -306,9 +301,8 @@ task --dir gitops dev:loadtest:setup-dataset
 task --dir gitops dev:loadtest:run
 ```
 
-`values/aws-dev.yaml`은 기본으로 dataset CronJob과 read baseline CronJob을 켠다.
-dataset은 `5 */6 * * *`, read baseline은 `20 */6 * * *`에 실행해 같은 주기 안에서 dataset 준비가 먼저 끝나도록 둔다.
-Argo sync 때도 `syncJobs.dataset`이 먼저 실행되고, `syncJobs.read`가 뒤따른다.
+`values/aws-dev.yaml`은 CronJob을 만들지 않고 Argo sync hook Job도 끈다.
+부하테스트는 자동 반복 실행하면 결과 해석이 흐려지므로, 실험 조건을 확정한 뒤 manualRuns로 한 번씩 실행한다.
 
 GitOps 관리형 수동 dataset setup 예시:
 

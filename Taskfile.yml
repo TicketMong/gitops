@@ -104,19 +104,19 @@ tasks:
       - task: loadtest:run-local
 
   dev:loadtest:deploy:
-    desc: Docker Desktop dev에 read API loadtest k6 CronJob만 배포합니다.
+    desc: Docker Desktop dev에 read API loadtest Helm release를 배포합니다.
     cmds:
       - task: dev:registry
       - task: loadtest:secret-local
       - task: loadtest:deploy
 
   dev:loadtest:setup-dataset:
-    desc: 배포된 read API loadtest dataset CronJob에서 로컬 수동 Job을 1회 실행하고 완료를 기다립니다.
+    desc: read API loadtest dataset setup Job을 1회 실행하고 완료를 기다립니다.
     cmds:
       - task: loadtest:setup-dataset
 
   dev:loadtest:run:
-    desc: 배포된 read API loadtest CronJob에서 수동 Job을 1회 실행하고 완료를 기다립니다.
+    desc: read API loadtest Job을 1회 실행하고 완료를 기다립니다.
     cmds:
       - task: loadtest:run
 

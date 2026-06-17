@@ -7,10 +7,6 @@ image:
   pullPolicy: Always
   pullSecrets: []
 
-cronJob:
-  suspend: true
-  schedule: "0 */6 * * *"
-
 dataset:
   concerts: 5
   performancesPerConcert: 2
@@ -20,10 +16,6 @@ dataset:
   createPauseSeconds: 0.5
   customerPool:
     size: 100
-  cronJob:
-    suspend: true
-    schedule: "5 */6 * * *"
-
 syncJobs:
   dataset:
     enabled: false

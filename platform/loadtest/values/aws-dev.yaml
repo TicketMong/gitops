@@ -3,14 +3,10 @@ environment: aws-dev
 image:
   registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
   repository: read-api-loadtest
-  tag: dev
+  tag: 04f1a650455f419ca837d5923451583f7b08c8e6
   pullPolicy: Always
   pullSecrets:
     - ecr-registry
-
-cronJob:
-  suspend: false
-  schedule: "20 */6 * * *"
 
 dataset:
   credentialsSecretName: read-api-loadtest-credentials
@@ -27,15 +23,11 @@ dataset:
   createPauseSeconds: 0.2
   customerPool:
     size: 100
-  cronJob:
-    suspend: false
-    schedule: "5 */6 * * *"
-
 syncJobs:
   dataset:
-    enabled: true
+    enabled: false
   read:
-    enabled: true
+    enabled: false
 
 loadtest:
   target: aws
