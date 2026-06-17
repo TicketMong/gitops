@@ -48,9 +48,9 @@ tasks:
         if [ -z "${scenario_values_file}" ] && [ -n "${preset}" ]; then
           scenario_base="${scenario%-load-test}"
           for candidate in \
-            "values/scenarios/${preset}.yaml" \
-            "values/scenarios/${scenario}-${preset}.yaml" \
-            "values/scenarios/${scenario_base}-${preset}.yaml"; do
+            "values/presets/${scenario}/${preset}.yaml" \
+            "values/presets/${scenario_base}/${preset}.yaml" \
+            "values/presets/${preset}.yaml"; do
             if [ -f "${candidate}" ]; then
               scenario_values_file="${candidate}"
               break
@@ -227,9 +227,9 @@ tasks:
         if [ -z "${scenario_values_file}" ] && [ -n "${preset}" ]; then
           scenario_base="${scenario%-load-test}"
           for candidate in \
-            "values/scenarios/${preset}.yaml" \
-            "values/scenarios/${scenario}-${preset}.yaml" \
-            "values/scenarios/${scenario_base}-${preset}.yaml"; do
+            "values/presets/${scenario}/${preset}.yaml" \
+            "values/presets/${scenario_base}/${preset}.yaml" \
+            "values/presets/${preset}.yaml"; do
             if [ -f "${candidate}" ]; then
               scenario_values_file="${candidate}"
               break
@@ -276,9 +276,9 @@ tasks:
         if [ -z "${scenario_values_file}" ] && [ -n "${preset}" ]; then
           scenario_base="${scenario%-load-test}"
           for candidate in \
-            "values/scenarios/${preset}.yaml" \
-            "values/scenarios/${scenario}-${preset}.yaml" \
-            "values/scenarios/${scenario_base}-${preset}.yaml"; do
+            "values/presets/${scenario}/${preset}.yaml" \
+            "values/presets/${scenario_base}/${preset}.yaml" \
+            "values/presets/${preset}.yaml"; do
             if [ -f "${candidate}" ]; then
               scenario_values_file="${candidate}"
               break

@@ -2,18 +2,6 @@ loadtest:
   scenario: reservation-journey-load-test
   credentialsSecretName: read-api-loadtest-credentials
 
-trafficModel:
-  preset: stress-find-limit
-  mau: ""
-  stickiness: ""
-  peakParticipationRate: ""
-  peakWindowMinutes: ""
-  journeysPerUser: ""
-  safetyFactor: ""
-  targetTicketsPerCustomer: 100
-  calculatedJourneyRate: ""
-  expectedJourneys: 5100
-
 dataset:
   profile: reservation-journey
   revision: reservation-v1
@@ -24,21 +12,6 @@ dataset:
 scenarios:
   reservationJourney:
     requestPrefix: loadtest-reservation
-    executor: ramping-arrival-rate
-    vus: 50
-    rate: 5
-    timeUnit: 1s
-    preAllocatedVUs: 50
-    maxVUs: 200
-    duration: 6m
-    stages:
-      - duration: 1m
-        target: 5
-      - duration: 2m
-        target: 10
-      - duration: 3m
-        target: 20
-    thinkTimeSeconds: 0
     ticketListLimit: 20
     ticketListMaxPages: 5
     activeCustomerCount: 100

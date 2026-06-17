@@ -106,10 +106,6 @@ values/scenarios/setup-read-dataset.yaml
 values/scenarios/read-api-baseline.yaml
 values/scenarios/auth-login-load-test.yaml
 values/scenarios/reservation-journey-load-test.yaml
-values/scenarios/reservation-journey-mau10k-normal-peak.yaml
-values/scenarios/reservation-journey-mau10k-ticket-open.yaml
-values/scenarios/reservation-journey-mau10k-ticket-open-aggressive.yaml
-values/scenarios/reservation-journey-stress-find-limit.yaml
 ```
 
 조회 기준선의 VU, duration, stages, read limit, threshold는 `scenarios.readApiBaseline`에서만 조절한다.
@@ -117,18 +113,19 @@ auth login의 executor, rate, VU 한도, duration, stages, threshold는 `scenari
 예매 여정의 executor, rate, VU 한도, duration, stages, polling, ticket list page 범위, active customer 수, 결제 금액, 좌석 재시도, threshold는 `scenarios.reservationJourney`에서만 조절한다.
 dataset setup 조건은 `dataset` 아래에 두고, fresh pool은 `dataset.revision` 또는 `dataset.customerPool.revision`으로 분리한다.
 `trafficModel`은 실행값을 만든 사업/트래픽 가정을 기록한다. k6 실행은 `scenarios.reservationJourney` 값을 사용하고, `trafficModel`은 `loadtest_experiment_conditions`에 함께 남겨 나중에 같은 프리셋끼리 비교한다.
+프리셋 파일은 `values/presets/<scenario-family>/<preset>.yaml`에 둔다. scenario 파일은 실행 script의 기본 조건이고, preset 파일은 같은 script에 얹는 실험 조건이다.
 
 ## Reservation Journey Presets
 
 예매 여정 프리셋은 모두 같은 k6 script인 `reservation-journey-load-test`를 실행한다.
 실행할 때는 파일 경로가 아니라 `PRESET=<name>`으로 선택한다.
-values 파일 이름은 프리셋 저장 위치일 뿐이고, values 안의 `loadtest.scenario`는 실제 script 이름으로 고정한다.
+preset values 파일은 `values/presets/reservation-journey/` 아래에 두고, values 안의 `loadtest.scenario`는 실제 script 이름으로 고정한다.
 
 ```text
-mau10k-normal-peak
-mau10k-ticket-open
-mau10k-ticket-open-aggressive
-stress-find-limit
+values/presets/reservation-journey/mau10k-normal-peak.yaml
+values/presets/reservation-journey/mau10k-ticket-open.yaml
+values/presets/reservation-journey/mau10k-ticket-open-aggressive.yaml
+values/presets/reservation-journey/stress-find-limit.yaml
 ```
 
 `mau10k-normal-peak`는 MAU 1만, DAU/MAU 20%, DAU의 30%가 피크 1시간에 분산되는 일반 피크를 가정한다.
