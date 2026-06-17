@@ -53,7 +53,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "{k8s_namespace_name=\"loadtest\", k8s_container_name=\"runner\"} | json | event=~\"loadtest_run_report|loadtest_api_summary|loadtest_experiment_conditions\"",
+          "expr": "{k8s_namespace_name=\"loadtest\", k8s_container_name=\"runner\"} | json | event=~\"loadtest_run_report|loadtest_experiment_conditions\"",
           "range": true,
           "refId": "A",
           "instant": false

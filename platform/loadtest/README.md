@@ -38,7 +38,7 @@ measure: GET /tickets/me?limit=...&cursor=...
 기본 좌석 선택은 dataset concert 안에서 run id 기반으로 분산한다.
 좌석 경쟁 자체를 확인하는 실험은 별도 시나리오로 둔다.
 `reservation_id`, `payment_id`, `ticket_id` 같은 동적 ID는 metric label/tag가 아니라 JSON 로그 필드에만 남긴다.
-단계별 latency는 본 실행 step tag가 붙은 `http_req_duration`으로 보고, setup/pre-login은 step-level threshold와 `loadtest_api_summary` 대상에서 제외한다.
+단계별 latency는 본 실행 step tag가 붙은 `http_req_duration`으로 보고, setup/pre-login은 run report의 `api_step_results` 대상에서 제외한다.
 예매 성공률, 409 비율, 티켓 발급률은 custom metric threshold로 본다.
 
 `reservation-create-load-test`는 예약 생성 경로만 분리한 R2 시나리오다.
@@ -80,7 +80,7 @@ R3 결과는 `reservation_seat_contention.reservation.create`의 201/409/5xx/tim
 
 `auth-login-load-test`는 `/auth/login` 병목만 분리해서 보는 시나리오다.
 실행 전 setup 단계에서 customer pool을 `POST /auth/signup`으로 만들거나 409 재사용을 허용한 뒤 login으로 검증한다.
-측정 구간의 반복 루프는 `POST /auth/login`만 호출하고, step-level `loadtest_api_summary`에는 `auth_login.login` 결과만 남긴다.
+측정 구간의 반복 루프는 `POST /auth/login`만 호출하고, `loadtest_run_report.api_step_results`에는 `auth_login.login` 결과만 남긴다.
 email, password, token 값은 JSON 로그나 metric tag에 남기지 않고, 계정 pool 식별은 revision과 count 조건으로만 관리한다.
 기본 scenario values는 빠른 임계점 탐색용으로 30초 단위 3단계 ramp-up을 사용한다.
 
@@ -102,7 +102,7 @@ measure: ticket-list-pagination, nextCursor로 여러 페이지 조회
 measure: ticket-wait-by-list, 특정 reservationId의 ticket을 목록 pagination으로 찾기
 ```
 
-분석 기준은 `loadtest_api_summary`와 `loadtest_run_report.api_step_results`의 `ticket-list`, `ticket-list-pagination`, `ticket-wait-by-list` 행이다.
+분석 기준은 `loadtest_run_report.api_step_results`의 `ticket-list`, `ticket-list-pagination`, `ticket-wait-by-list` 행이다.
 각 행에서 p95/p99, error rate, `http_reqs_rate`, `rps`, request count를 비교한다.
 RPS, duration, VU, local/cluster 차이는 scenario 코드가 아니라 `values/scenarios/ticket-service-read-load-test.yaml` 또는 `values/presets/ticket-service-read/*.yaml`에서 조절한다.
 
@@ -145,9 +145,9 @@ k6 실행 로그와 `handleSummary` 결과를 stdout JSON line으로 남기고, 
 이 이벤트에는 `environment`, `target`, `target_base_url`, `scenario`, `vus`, `duration`, threshold, dataset profile/revision, 계산된 dataset 총량, runner image tag, `revision`이 들어간다.
 발표 자료나 회고에서는 Grafana time range와 이 이벤트를 함께 보고 같은 조건을 다시 재현한다.
 
-실험 결과는 `loadtest_run_report`, `loadtest_summary`, `loadtest_api_summary` JSON line으로 남긴다.
+실험 결과는 `loadtest_run_report` JSON line 하나를 단일 결과로 보고, 호환용 전체 요약은 `loadtest_summary` JSON line으로 함께 남긴다.
 요청 처리량은 기존 k6 이름인 `http_reqs_rate`와 사람이 읽기 쉬운 별칭인 `rps`를 함께 기록한다.
-API별 처리량 비교에서는 `loadtest_api_summary.rps`를 우선 보고, 전체 실행 처리량은 `loadtest_run_report.rps`를 본다.
+API별 처리량 비교에서는 `loadtest_run_report.api_step_results[].rps`를 보고, 전체 실행 처리량은 `loadtest_run_report.rps`를 본다.
 
 ## Scenario conditions
 
