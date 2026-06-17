@@ -18,12 +18,13 @@ GET /performances/{id}/seats
 
 `reservation-journey-load-test`는 write path를 포함하는 별도 시나리오다.
 synthetic E2E처럼 해피패스를 확인하지만 목적은 낮은 트래픽 생존성 확인이 아니라 VU를 단계적으로 올려 예매 과정의 첫 병목을 찾는 것이다.
-실행 전 `setup()`에서 `loadtest_run_id` 기반 email prefix로 신규 customer pool을 만들고, 실제 부하에 참여할 customer의 access token을 준비한다.
+실행 전 `setup()`에서 `loadtest_run_id` 기반 dataset revision으로 공연/회차/좌석과 customer pool을 새로 만들고, 실제 부하에 참여할 customer의 access token을 준비한다.
 측정 구간은 앱 안에서 이미 로그인된 사용자가 예매를 진행하는 모델로 본다.
 auth-service access token 기본 TTL은 900초이므로, 현재 구현은 15분 이내 실행을 전제로 한다.
 더 긴 실험은 setup 토큰 재사용이 아니라 별도 refresh 설계가 필요하다.
 
 ```text
+setup/dataset: provider/admin login, concert/performance/seat 생성 또는 검증
 setup/account-pool: POST /auth/signup 또는 POST /auth/login 검증
 setup/pre-login: active customer token 준비
 measure: GET /concerts
@@ -93,11 +94,53 @@ lib/config/scenarios/reservation-journey.js
 values/scenarios/setup-read-dataset.yaml
 values/scenarios/read-api-baseline.yaml
 values/scenarios/reservation-journey-load-test.yaml
+values/scenarios/reservation-journey-mau10k-normal-peak.yaml
+values/scenarios/reservation-journey-mau10k-ticket-open.yaml
+values/scenarios/reservation-journey-mau10k-ticket-open-aggressive.yaml
+values/scenarios/reservation-journey-stress-find-limit.yaml
 ```
 
 조회 기준선의 VU, duration, stages, read limit, threshold는 `scenarios.readApiBaseline`에서만 조절한다.
 예매 여정의 executor, rate, VU 한도, duration, stages, polling, ticket list page 범위, active customer 수, 결제 금액, 좌석 재시도, threshold는 `scenarios.reservationJourney`에서만 조절한다.
 dataset setup 조건은 `dataset` 아래에 두고, fresh pool은 `dataset.revision` 또는 `dataset.customerPool.revision`으로 분리한다.
+`trafficModel`은 실행값을 만든 사업/트래픽 가정을 기록한다. k6 실행은 `scenarios.reservationJourney` 값을 사용하고, `trafficModel`은 `loadtest_experiment_conditions`에 함께 남겨 나중에 같은 프리셋끼리 비교한다.
+
+## Reservation Journey Presets
+
+예매 여정 프리셋은 모두 같은 k6 script인 `reservation-journey-load-test`를 실행한다.
+실행할 때는 파일 경로가 아니라 `PRESET=<name>`으로 선택한다.
+values 파일 이름은 프리셋 저장 위치일 뿐이고, values 안의 `loadtest.scenario`는 실제 script 이름으로 고정한다.
+
+```text
+mau10k-normal-peak
+mau10k-ticket-open
+mau10k-ticket-open-aggressive
+stress-find-limit
+```
+
+`mau10k-normal-peak`는 MAU 1만, DAU/MAU 20%, DAU의 30%가 피크 1시간에 분산되는 일반 피크를 가정한다.
+계산값은 약 `0.17 journey/s`이고 safety factor 3을 적용해 `0.5 journey/s`로 실행한다.
+
+`mau10k-ticket-open`은 MAU 1만, DAU/MAU 20%, DAU의 30%가 티켓 오픈 10분 안에 몰리는 상황을 가정한다.
+계산값은 `1 journey/s`이고 safety factor 2를 적용해 `2 journey/s`로 실행한다.
+
+`mau10k-ticket-open-aggressive`는 DAU/MAU 30%, DAU의 50%가 10분 안에 몰리는 더 공격적인 오픈런을 가정한다.
+계산값은 `2.5 journey/s`이고 safety factor 2를 적용해 `5 journey/s`로 실행한다.
+
+`stress-find-limit`는 MAU 모델 검증이 아니라 한계 탐색용이다.
+`5 -> 10 -> 20 journey/s` ramping-arrival-rate로 병목 위치를 찾는다.
+
+프리셋의 기준 식은 다음과 같다.
+
+```text
+DAU = MAU * stickiness
+raw journey/s = DAU * peakParticipationRate * journeysPerUser / (peakWindowMinutes * 60)
+실행 journey/s = raw journey/s * safetyFactor
+activeCustomerCount >= ceil(expectedJourneys / targetTicketsPerCustomer)
+```
+
+현재 기본 목표는 계정당 ticket을 대략 100건 안쪽으로 유지하는 것이다.
+따라서 duration이나 arrival rate를 키우면 `activeCustomerCount`와 `customerPool.size`도 같이 키운다.
 
 ## Commands
 
@@ -125,15 +168,18 @@ Kong rate limit을 포함한 제품 경로 기준선을 보려면 `LOADTEST_DISA
 ```bash
 SCENARIO=read-api-baseline task --dir gitops dev:loadtest
 SCENARIO=reservation-journey-load-test task --dir gitops dev:loadtest
+PRESET=mau10k-ticket-open task --dir gitops dev:loadtest
 LOADTEST_DISABLE_KONG_RATE_LIMIT=false SCENARIO=reservation-journey-load-test task --dir gitops dev:loadtest
 
 task --dir gitops/platform/loadtest lint
 task --dir gitops/platform/loadtest render
 LOADTEST_VALUES_FILE=values/aws-dev.yaml task --dir gitops/platform/loadtest render
 LOADTEST_SCENARIO_VALUES_FILE=values/scenarios/reservation-journey-load-test.yaml task --dir gitops/platform/loadtest render
+PRESET=mau10k-ticket-open task --dir gitops/platform/loadtest render
 task --dir gitops/platform/loadtest local-report LOADTEST_BASE_URL=http://localhost LOADTEST_VUS=5 LOADTEST_DURATION=1m
 task --dir gitops/platform/loadtest local-report-smoke
 SCENARIO=reservation-journey-load-test task --dir gitops/platform/loadtest run-local
+PRESET=mau10k-ticket-open task --dir gitops/platform/loadtest run-local
 LOADTEST_DISABLE_KONG_RATE_LIMIT=false SCENARIO=reservation-journey-load-test task --dir gitops/platform/loadtest run-local
 task --dir gitops/platform/loadtest kong-rate-limit:status
 task --dir gitops/platform/loadtest kong-rate-limit:restore
@@ -181,6 +227,7 @@ manualRuns:
 ```yaml
 loadtest:
   scenario: reservation-journey-load-test
+  credentialsSecretName: read-api-loadtest-credentials
 dataset:
   profile: reservation-journey
   revision: reservation-20260615-001
@@ -207,13 +254,14 @@ scenarios:
         target: 10
 ```
 
-dataset setup에는 `LOADTEST_PROVIDER_EMAIL`, `LOADTEST_PROVIDER_PASSWORD`, `LOADTEST_ADMIN_EMAIL`, `LOADTEST_ADMIN_PASSWORD`를 가진 `dataset.credentialsSecretName` Secret이 필요하다.
+dataset setup과 reservation journey setup에는 `LOADTEST_PROVIDER_EMAIL`, `LOADTEST_PROVIDER_PASSWORD`, `LOADTEST_ADMIN_EMAIL`, `LOADTEST_ADMIN_PASSWORD`를 가진 Secret이 필요하다.
+`reservation-journey-load-test` values는 같은 Secret을 `loadtest.credentialsSecretName`으로도 붙여 본 실행의 setup 단계에서 run-scoped dataset을 만들 수 있게 한다.
 reservation journey 본 실행은 signup을 측정 구간에 포함하지 않는다.
-실행 전에 `dataset.profile=reservation-journey`로 dataset setup을 돌려 customer pool과 예매용 공연/회차/좌석을 준비한다.
-본 실행의 `setup()`은 `LOADTEST_CUSTOMER_POOL_*` 값과 `LOADTEST_RUN_ID`를 조합해 매 실행마다 신규 customer pool을 만들고, `{ customerIndex, customerId, accessToken }` 토큰 목록만 VU에 넘긴다.
+실행 전에 `dataset.profile=reservation-journey`로 dataset setup을 돌려 기본 예매용 데이터셋을 준비할 수 있지만, 본 실행의 `setup()`도 `LOADTEST_RUN_ID`를 붙인 revision으로 공연/회차/좌석을 새로 만든다.
+본 실행의 `setup()`은 같은 run-scoped revision으로 신규 customer pool도 만들고, `{ customerIndex, customerId, accessToken }` 토큰 목록만 VU에 넘긴다.
 `dataset.customerPool.size`는 setup에서 생성 또는 검증하는 전체 계정 수이고, `scenarios.reservationJourney.activeCustomerCount`는 실제 부하에 참여하는 계정 수다.
-기본값은 둘 다 100명으로 두어 6분 ramping-arrival-rate 실행에서도 계정당 ticket 수가 비현실적으로 누적되지 않게 한다.
-더 높은 arrival rate나 긴 duration을 쓰면 active customer 수를 같이 늘려 계정당 ticket 수를 대략 100건 안쪽으로 유지한다.
+기본값은 둘 다 100명으로 두어 6분 `5 -> 10 -> 20/s` ramping-arrival-rate 실행에서 계정당 ticket 수가 평균 약 51건 수준이 되게 한다.
+더 높은 arrival rate나 긴 duration을 쓰면 `ceil(예상 성공 journey 수 / 계정당 목표 ticket 수)` 기준으로 active customer 수를 같이 늘려 계정당 ticket 수를 대략 100건 안쪽으로 유지한다.
 default 함수는 `customerPoolIndexForIteration(config, __VU, __ITER)`로 active customer 범위 안의 토큰을 골라 예매 API 인증 헤더에만 사용한다.
 측정 루프는 `catalog.select_seat -> reservation.create -> payment.approve -> ticket.wait` 순서이며 매 iteration마다 새 `POST /auth/login`을 호출하지 않는다.
 `ticket.wait`는 `/tickets/me` 전체 목록을 반복 조회하지 않고 `ticketListLimit`와 `ticketListMaxPages`로 제한한 cursor pagination만 사용한다.

@@ -2,10 +2,12 @@ import http from 'k6/http';
 import { check, fail, group, sleep } from 'k6';
 import { Rate } from 'k6/metrics';
 
-import { getConfig, requireCustomerPool } from '../lib/config.js';
+import { loginAdmin, loginProvider } from '../lib/auth.js';
+import { getConfig, requireCustomerPool, requireDatasetCredentials } from '../lib/config.js';
 import { activeCustomerCount, customerPoolAccount, customerPoolIndexForIteration } from '../lib/customer-pool.js';
 import { httpStepThresholds, RESERVATION_JOURNEY_STEPS } from '../lib/http-metrics.js';
 import {
+  logDatasetFinished,
   logExperimentConditions,
   logJourneyStep,
   logRunFailed,
@@ -20,6 +22,7 @@ import {
   selectReservationTarget,
   waitForTicket,
 } from '../flows/reservation-journey.js';
+import { setupReadApiBasicDataset } from '../flows/datasets/read-api-basic.js';
 
 const config = getConfig();
 const journeySuccess = new Rate('loadtest_reservation_journey_success');
@@ -27,11 +30,19 @@ const reservationConflictRate = new Rate('loadtest_reservation_conflict_rate');
 const ticketIssuedRate = new Rate('loadtest_ticket_issued_rate');
 const PRE_LOGIN_STEP = 'reservation_journey.setup.pre_login';
 
-function iterationConfig() {
-  const iterationId = `${Date.now()}-${__VU}-${__ITER}`;
-  const customerIndex = customerPoolIndexForIteration(config, __VU, __ITER);
-  return {
+function iterationConfig(setupData) {
+  const datasetRevision = setupData && setupData.datasetRevision ? setupData.datasetRevision : config.dataset.revision;
+  const runBaseConfig = {
     ...config,
+    dataset: {
+      ...config.dataset,
+      revision: datasetRevision,
+    },
+  };
+  const iterationId = `${Date.now()}-${__VU}-${__ITER}`;
+  const customerIndex = customerPoolIndexForIteration(runBaseConfig, __VU, __ITER);
+  return {
+    ...runBaseConfig,
     iterationId,
     requestIdBase: `${config.requestPrefix}-${config.scenario}-${iterationId}`,
     customer: {
@@ -148,19 +159,39 @@ function customerTokenFromAuth(index, auth) {
   };
 }
 
-function runScopedCustomerConfig(runConfig) {
+function runScopedConfig(runConfig) {
   const runToken = String(runConfig.runId || 'run')
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(-24) || 'run';
+  const datasetRevision = `${runConfig.dataset.revision}-${runToken}`;
   return {
     ...runConfig,
+    dataset: {
+      ...runConfig.dataset,
+      revision: datasetRevision,
+    },
     customerPool: {
       ...runConfig.customerPool,
-      emailPrefix: `${runConfig.customerPool.emailPrefix}-${runToken}`,
+      revision: datasetRevision,
     },
   };
+}
+
+function prepareRunScopedDataset(runConfig) {
+  requireDatasetCredentials(runConfig);
+  const tokens = {};
+  group('dataset.auth', () => {
+    tokens.provider = loginProvider(runConfig).accessToken;
+    tokens.admin = loginAdmin(runConfig).accessToken;
+  });
+  const state = {};
+  group('dataset.setup', () => {
+    Object.assign(state, setupReadApiBasicDataset(runConfig, tokens));
+  });
+  logDatasetFinished(runConfig, state);
+  return state;
 }
 
 function signupOrLoginCustomer(runConfig, index) {
@@ -273,15 +304,21 @@ export const options = {
 
 export function setup() {
   requireCustomerPool(config);
-  const setupConfig = runScopedCustomerConfig(config);
+  const setupConfig = runScopedConfig(config);
   logExperimentConditions(setupConfig, 'reservation_journey_setup');
+  const datasetState = prepareRunScopedDataset(setupConfig);
   const { customerTokens, state } = prepareCustomerTokens(setupConfig);
   logExperimentConditions(setupConfig, 'reservation_journey_measurement');
-  return { customerTokens, customerState: state };
+  return {
+    customerTokens,
+    customerState: state,
+    datasetState,
+    datasetRevision: setupConfig.dataset.revision,
+  };
 }
 
 export default function reservationJourneyLoadTest(setupData) {
-  const runConfig = iterationConfig();
+  const runConfig = iterationConfig(setupData);
   const customerToken = customerTokenForIteration(setupData, runConfig.customer.index);
   const state = {
     customerId: customerToken.customerId,

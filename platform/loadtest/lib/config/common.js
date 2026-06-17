@@ -10,6 +10,44 @@ function baseUrlForTarget(target) {
   return required('LOADTEST_BASE_URL');
 }
 
+function optionalPositiveNumber(name) {
+  const raw = optional(name);
+  if (!raw) {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`${name} must be a positive number`);
+  }
+  return value;
+}
+
+function optionalPositiveInteger(name) {
+  const value = optionalPositiveNumber(name);
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Number.isInteger(value)) {
+    throw new Error(`${name} must be an integer`);
+  }
+  return value;
+}
+
+function getTrafficModelConfig() {
+  return {
+    preset: optional('LOADTEST_TRAFFIC_MODEL_PRESET') || undefined,
+    mau: optionalPositiveInteger('LOADTEST_TRAFFIC_MODEL_MAU'),
+    stickiness: optionalPositiveNumber('LOADTEST_TRAFFIC_MODEL_STICKINESS'),
+    peakParticipationRate: optionalPositiveNumber('LOADTEST_TRAFFIC_MODEL_PEAK_PARTICIPATION_RATE'),
+    peakWindowMinutes: optionalPositiveNumber('LOADTEST_TRAFFIC_MODEL_PEAK_WINDOW_MINUTES'),
+    journeysPerUser: optionalPositiveNumber('LOADTEST_TRAFFIC_MODEL_JOURNEYS_PER_USER'),
+    safetyFactor: optionalPositiveNumber('LOADTEST_TRAFFIC_MODEL_SAFETY_FACTOR'),
+    targetTicketsPerCustomer: optionalPositiveInteger('LOADTEST_TRAFFIC_MODEL_TARGET_TICKETS_PER_CUSTOMER'),
+    calculatedJourneyRate: optionalPositiveNumber('LOADTEST_TRAFFIC_MODEL_CALCULATED_JOURNEY_RATE'),
+    expectedJourneys: optionalPositiveInteger('LOADTEST_TRAFFIC_MODEL_EXPECTED_JOURNEYS'),
+  };
+}
+
 export function getCommonConfig() {
   const target = optional('LOADTEST_TARGET', 'local');
   const scenario = optional('LOADTEST_SCENARIO', 'read-api-baseline');
@@ -42,6 +80,7 @@ export function getCommonConfig() {
     imageTag,
     release: optional('LOADTEST_RELEASE'),
     namespace: optional('LOADTEST_NAMESPACE'),
+    trafficModel: getTrafficModelConfig(),
     k6Output,
     k6ExtraArgs,
     k6ScenarioFile,

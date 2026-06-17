@@ -17,6 +17,8 @@ trafficModel:
 dataset:
   profile: reservation-journey
   revision: reservation-v1
+  concerts: 20
+  performancesPerConcert: 3
   customerPool:
     size: 100
     revision: reservation-v1

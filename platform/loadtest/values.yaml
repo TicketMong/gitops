@@ -119,6 +119,18 @@ loadtest:
   localBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
   awsBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
 
+trafficModel:
+  preset: ""
+  mau: ""
+  stickiness: ""
+  peakParticipationRate: ""
+  peakWindowMinutes: ""
+  journeysPerUser: ""
+  safetyFactor: ""
+  targetTicketsPerCustomer: ""
+  calculatedJourneyRate: ""
+  expectedJourneys: ""
+
 scenarios:
   readApiBaseline:
     requestPrefix: loadtest-read

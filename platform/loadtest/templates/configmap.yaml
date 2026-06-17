@@ -18,6 +18,16 @@ data:
   LOADTEST_IMAGE_TAG: {{ .Values.image.tag | quote }}
   LOADTEST_RELEASE: {{ .Release.Name | quote }}
   LOADTEST_NAMESPACE: {{ include "read-api-loadtest.namespace" . | quote }}
+  LOADTEST_TRAFFIC_MODEL_PRESET: {{ .Values.trafficModel.preset | quote }}
+  LOADTEST_TRAFFIC_MODEL_MAU: {{ .Values.trafficModel.mau | quote }}
+  LOADTEST_TRAFFIC_MODEL_STICKINESS: {{ .Values.trafficModel.stickiness | quote }}
+  LOADTEST_TRAFFIC_MODEL_PEAK_PARTICIPATION_RATE: {{ .Values.trafficModel.peakParticipationRate | quote }}
+  LOADTEST_TRAFFIC_MODEL_PEAK_WINDOW_MINUTES: {{ .Values.trafficModel.peakWindowMinutes | quote }}
+  LOADTEST_TRAFFIC_MODEL_JOURNEYS_PER_USER: {{ .Values.trafficModel.journeysPerUser | quote }}
+  LOADTEST_TRAFFIC_MODEL_SAFETY_FACTOR: {{ .Values.trafficModel.safetyFactor | quote }}
+  LOADTEST_TRAFFIC_MODEL_TARGET_TICKETS_PER_CUSTOMER: {{ .Values.trafficModel.targetTicketsPerCustomer | quote }}
+  LOADTEST_TRAFFIC_MODEL_CALCULATED_JOURNEY_RATE: {{ .Values.trafficModel.calculatedJourneyRate | quote }}
+  LOADTEST_TRAFFIC_MODEL_EXPECTED_JOURNEYS: {{ .Values.trafficModel.expectedJourneys | quote }}
   LOADTEST_DATASET_REQUEST_PREFIX: {{ .Values.dataset.requestPrefix | quote }}
   LOADTEST_DATASET_TIMEOUT_SECONDS: {{ .Values.dataset.timeoutSeconds | quote }}
   LOADTEST_DATASET_THRESHOLD_HTTP_REQ_FAILED_RATE: {{ .Values.dataset.thresholds.httpReqFailedRate | quote }}

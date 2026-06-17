@@ -40,6 +40,30 @@ tasks:
         set -eu
         values_file="${LOADTEST_VALUES_FILE:-{{.VALUES_FILE}}}"
         scenario_values_file="${LOADTEST_SCENARIO_VALUES_FILE:-}"
+        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-}}}"
+        scenario="${LOADTEST_SCENARIO:-${SCENARIO:-}}"
+        if [ -z "${scenario}" ] && [ -n "${preset}" ]; then
+          scenario="reservation-journey-load-test"
+        fi
+        if [ -z "${scenario_values_file}" ] && [ -n "${preset}" ]; then
+          scenario_base="${scenario%-load-test}"
+          for candidate in \
+            "values/scenarios/${preset}.yaml" \
+            "values/scenarios/${scenario}-${preset}.yaml" \
+            "values/scenarios/${scenario_base}-${preset}.yaml"; do
+            if [ -f "${candidate}" ]; then
+              scenario_values_file="${candidate}"
+              break
+            fi
+          done
+          if [ -z "${scenario_values_file}" ]; then
+            printf 'Unknown preset=%s for scenario=%s.\n' "${preset}" "${scenario}" >&2
+            exit 2
+          fi
+        fi
+        if [ -z "${scenario_values_file}" ] && [ -n "${scenario}" ] && [ -f "values/scenarios/${scenario}.yaml" ]; then
+          scenario_values_file="values/scenarios/${scenario}.yaml"
+        fi
         image_ref="$(task image-ref --silent)"
         image_registry="${image_ref%/*}"
         image_name_tag="${image_ref##*/}"
@@ -189,6 +213,30 @@ tasks:
         set -eu
         values_file="${LOADTEST_VALUES_FILE:-{{.VALUES_FILE}}}"
         scenario_values_file="${LOADTEST_SCENARIO_VALUES_FILE:-}"
+        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-}}}"
+        scenario="${LOADTEST_SCENARIO:-${SCENARIO:-}}"
+        if [ -z "${scenario}" ] && [ -n "${preset}" ]; then
+          scenario="reservation-journey-load-test"
+        fi
+        if [ -z "${scenario_values_file}" ] && [ -n "${preset}" ]; then
+          scenario_base="${scenario%-load-test}"
+          for candidate in \
+            "values/scenarios/${preset}.yaml" \
+            "values/scenarios/${scenario}-${preset}.yaml" \
+            "values/scenarios/${scenario_base}-${preset}.yaml"; do
+            if [ -f "${candidate}" ]; then
+              scenario_values_file="${candidate}"
+              break
+            fi
+          done
+          if [ -z "${scenario_values_file}" ]; then
+            printf 'Unknown preset=%s for scenario=%s.\n' "${preset}" "${scenario}" >&2
+            exit 2
+          fi
+        fi
+        if [ -z "${scenario_values_file}" ] && [ -n "${scenario}" ] && [ -f "values/scenarios/${scenario}.yaml" ]; then
+          scenario_values_file="values/scenarios/${scenario}.yaml"
+        fi
         image_ref="$(task image-ref --silent)"
         image_registry="${image_ref%/*}"
         image_name_tag="${image_ref##*/}"
@@ -207,16 +255,38 @@ tasks:
           --set-string image.tag="${image_tag}"
 
   run-local:
-    desc: 로컬 dev에 특정 시나리오를 배포하고 dataset setup과 loadtest를 바로 실행합니다. SCENARIO=<scenario-name>
+    desc: 로컬 dev에 특정 시나리오를 배포하고 dataset setup과 loadtest를 바로 실행합니다. SCENARIO=<scenario-name> PRESET=<preset-name>
     cmds:
       - task: ensure-no-active-loadtest
       - |
         set -eu
-        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-read-api-baseline}}"
-        scenario_values_file="${LOADTEST_SCENARIO_VALUES_FILE:-values/scenarios/${scenario}.yaml}"
+        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-}}}"
+        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-}}"
+        if [ -z "${scenario}" ] && [ -n "${preset}" ]; then
+          scenario="reservation-journey-load-test"
+        fi
+        scenario="${scenario:-read-api-baseline}"
+        scenario_values_file="${LOADTEST_SCENARIO_VALUES_FILE:-}"
+        if [ -z "${scenario_values_file}" ] && [ -n "${preset}" ]; then
+          scenario_base="${scenario%-load-test}"
+          for candidate in \
+            "values/scenarios/${preset}.yaml" \
+            "values/scenarios/${scenario}-${preset}.yaml" \
+            "values/scenarios/${scenario_base}-${preset}.yaml"; do
+            if [ -f "${candidate}" ]; then
+              scenario_values_file="${candidate}"
+              break
+            fi
+          done
+          if [ -z "${scenario_values_file}" ]; then
+            printf 'Unknown preset=%s for scenario=%s.\n' "${preset}" "${scenario}" >&2
+            exit 2
+          fi
+        fi
+        scenario_values_file="${scenario_values_file:-values/scenarios/${scenario}.yaml}"
         if [ ! -f "${scenario_values_file}" ]; then
           printf 'Unknown or missing scenario values file: %s\n' "${scenario_values_file}" >&2
-          printf 'Set SCENARIO=<name> or LOADTEST_SCENARIO_VALUES_FILE=<path>.\n' >&2
+          printf 'Set SCENARIO=<name>, PRESET=<preset-name>, or LOADTEST_SCENARIO_VALUES_FILE=<path>.\n' >&2
           exit 2
         fi
         export SCENARIO="${scenario}"

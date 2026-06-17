@@ -42,6 +42,22 @@ function datasetShape(config) {
   };
 }
 
+function trafficModelShape(config) {
+  const model = config.trafficModel || {};
+  return {
+    traffic_model_preset: model.preset,
+    traffic_model_mau: model.mau,
+    traffic_model_stickiness: model.stickiness,
+    traffic_model_peak_participation_rate: model.peakParticipationRate,
+    traffic_model_peak_window_minutes: model.peakWindowMinutes,
+    traffic_model_journeys_per_user: model.journeysPerUser,
+    traffic_model_safety_factor: model.safetyFactor,
+    traffic_model_target_tickets_per_customer: model.targetTicketsPerCustomer,
+    traffic_model_calculated_journey_rate: model.calculatedJourneyRate,
+    traffic_model_expected_journeys: model.expectedJourneys,
+  };
+}
+
 export function experimentConditionFields(config, phase) {
   const thresholds = config.thresholds || {};
   return compact({
@@ -89,6 +105,7 @@ export function experimentConditionFields(config, phase) {
     threshold_reservation_conflict_rate: thresholds.reservationConflictRate,
     threshold_ticket_issued_rate: thresholds.ticketIssuedRate,
     measurement_window_source: 'grafana_time_range',
+    ...trafficModelShape(config),
     ...datasetShape(config),
   });
 }

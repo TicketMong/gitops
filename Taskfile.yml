@@ -98,7 +98,7 @@ tasks:
       - task: synthetic:run
 
   dev:loadtest:
-    desc: Docker Desktop dev에 특정 loadtest 시나리오를 배포하고 dataset setup과 실행을 순차 처리합니다. SCENARIO=<scenario-name>
+    desc: Docker Desktop dev에 특정 loadtest 시나리오를 배포하고 dataset setup과 실행을 순차 처리합니다. SCENARIO=<scenario-name> PRESET=<preset-name>
     cmds:
       - task: dev:registry
       - task: loadtest:run-local
