@@ -16,7 +16,7 @@ spec:
           - $values/values/env/private-dev.yaml
           - $values/values/services/auth.yaml
           - $values/values/services/private-dev/auth.yaml
-          - $values/values/overrides/private-dev-smoke-stable.yaml
+          - $values/values/overrides/private-dev-ha-stable.yaml
     - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       ref: values
