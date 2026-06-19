@@ -1,4 +1,3 @@
 manualRuns:
   read:
-    enabled: false
-    runId: ""
+    runId: "mau10k-ticket-open-20260619071240"
