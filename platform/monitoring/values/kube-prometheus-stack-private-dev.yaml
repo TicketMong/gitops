@@ -3,6 +3,20 @@ crds:
 
 alertmanager:
   enabled: true
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname', 'namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'discord'
+    receivers:
+    - name: 'discord'
+      webhook_configs:
+      - url: 'http://alertmanager-discord.monitoring.svc.cluster.local:9094/'
+        send_resolved: true
   alertmanagerSpec:
     replicas: 1
     nodeSelector:
@@ -182,8 +196,8 @@ prometheus:
           resources:
             requests:
               storage: 2Gi
-    nodeSelector:
-      medikong.io/workload: observability
+  nodeSelector:
+    medikong.io/workload: observability
 
 prometheusOperator:
   image:
