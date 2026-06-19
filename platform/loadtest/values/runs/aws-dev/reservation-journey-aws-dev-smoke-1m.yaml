@@ -1,4 +1,4 @@
 manualRuns:
   read:
-    enabled: false
-    runId: ""
+    enabled: true
+    runId: "smoke-20260619-141056"
