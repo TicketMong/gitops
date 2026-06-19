@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: storageclass-private-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-30"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Medikong/gitops.git
+    targetRevision: HEAD
+    path: platform/storage
+    directory:
+      include: local-path-private-dev.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: local-path-storage
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/name: local-path-storage
+        app.kubernetes.io/part-of: medikong
+        medikong.io/platform: storage
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

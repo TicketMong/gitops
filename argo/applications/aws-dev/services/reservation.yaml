@@ -16,6 +16,7 @@ spec:
           - $values/values/env/aws-dev.yaml
           - $values/values/services/reservation.yaml
           - $values/values/overrides/aws-dev-smoke-stable.yaml
+          - $values/values/scenarios/istio/reservation-canary-v2.yaml
     - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       ref: values
@@ -23,5 +24,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: ticketing-reservation
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=false

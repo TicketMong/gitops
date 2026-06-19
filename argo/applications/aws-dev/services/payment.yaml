@@ -23,5 +23,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: ticketing-payment
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=false

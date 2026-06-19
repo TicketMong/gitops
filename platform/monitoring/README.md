@@ -148,7 +148,7 @@ Dashboard는 UI에서 수동 생성하지 않고 `dashboards/{ops,logs,db}/*.jso
 
 첫 화면은 Ops folder의 `dashboards/ops/00-service-metrics-overview.json`이다. 패널 순서는 사용자 영향과 핵심 비즈니스 흐름을 먼저 보고, 이후 이벤트와 의존성 상태로 원인을 좁히도록 둔다.
 
-서비스 runtime 상태는 Ops folder의 `dashboards/ops/01-service-runtime-health.json`과 `dashboards/ops/02-service-runtime-detail.json`로 나눠 관리한다. `01-service-runtime-health.json`은 전체 서비스 요약과 서비스별 미니 패널에서 현재 Pod 수, available ratio, Ready=false, restart 증가, OOMKilled, memory limit 사용률, CPU throttling을 stat 타일과 bar gauge 리스트로 빠르게 확인한다. `02-service-runtime-detail.json`은 같은 항목을 시간축으로 펼쳐 특정 시간대에 desired/available pod, Ready=false, restart, OOMKilled, CPU/memory/network 상태가 어떻게 움직였는지 확인한다.
+서비스 runtime 상태는 Ops folder의 `dashboards/ops/01-service-runtime-health.json`, `dashboards/ops/02-service-runtime-detail.json`, `dashboards/ops/04-pod-logs-and-waiting-reasons.json`로 나눠 관리한다. `01-service-runtime-health.json`은 전체 서비스 요약과 서비스별 미니 패널에서 현재 Pod 수, available ratio, Ready=false, restart 증가, OOMKilled, memory limit 사용률, CPU throttling을 stat 타일과 bar gauge 리스트로 빠르게 확인한다. `02-service-runtime-detail.json`은 같은 항목을 시간축으로 펼쳐 특정 시간대에 desired/available pod, Ready=false, restart, OOMKilled, CPU/memory/network 상태가 어떻게 움직였는지 확인한다. `04-pod-logs-and-waiting-reasons.json`은 런타임 상태에서 원인을 좁힌 뒤 namespace/pod/container 기준 Loki 파드 로그와 Prometheus waiting reason, restart 증가, Collector 로그 export 실패를 함께 확인한다.
 
 시스템/Kubernetes 메트릭은 `workspace/docs/architecture/observability/metrics/system-metrics.md` 기준으로 Ops folder의 `dashboards/ops/10-system-kubernetes-overview.json`, `dashboards/ops/11-pod-container-resources.json`, `dashboards/ops/12-node-pressure-overview.json`에서 관리한다. 진단 흐름은 서비스 영향 확인 후 Deployment 가용성, Pod/Container 자원과 restart/OOMKilled, Node Ready/Pressure 상태 순서로 내려간다. 현재 상태는 stat 타일과 bar gauge로 먼저 보고, 정확한 대상 식별은 table로 확인하며, 시간 변화가 필요한 CPU/memory/network/pressure만 time series로 둔다. Pod CPU pressure는 kubelet/cAdvisor PSI 지표인 `container_pressure_cpu_waiting_seconds_total`의 Pod cgroup series를 우선 사용하고, 없으면 container series를 Pod 단위로 합산해서 본다. PromQL은 `pod=""`, `container="POD"`처럼 운영 판단에 의미 없는 series를 제외한다.
 
@@ -197,6 +197,8 @@ Logs 80 - Service Trace Detail
 ```
 
 기본 request 패널은 `/health`, `/metrics`, `/readyz` 성공 로그를 제외한다. `trace_id`, `request_id`, `synthetic_run_id`, reservation/payment/ticket ID는 Loki label로 쓰지 않고 `| json` 이후 본문 field로 검색한다. Synthetic 상태와 journey 결과는 `Logs 50 - Synthetic`에서만 다루고, 서비스 상세 추적 dashboard에는 synthetic 패널을 섞지 않는다. 비즈니스 이벤트 로그가 아직 부족한 서비스는 현재 구조화 로그의 `event` field 기준으로만 표시하며, 별도 service 로그 스키마나 Collector drop/sampling 정책 변경은 이 dashboard 작업 범위에 포함하지 않는다.
+
+Pod stdout/stderr 수집은 `platform/observability/collector/values/aws-dev.yaml`의 DaemonSet `filelog` receiver가 `/var/log/pods/*/*/*.log`를 읽어 Loki OTLP endpoint로 전달하는 구조다. `ImagePullBackOff`, `FailedToRetrieveImagePullSecret`처럼 컨테이너 시작 전 실패는 컨테이너 로그가 없을 수 있으므로 `04 Pod Logs and Waiting Reasons`에서 kube-state-metrics의 waiting reason을 함께 본다. Kubernetes Event를 Loki 로그로 장기 보관하려면 DaemonSet Collector에 event watch receiver를 바로 추가하지 않고, 중복 수집을 피하는 별도 cluster-scoped Collector 배포로 설계한다.
 
 ## Docker Desktop 로컬 테스트
 
