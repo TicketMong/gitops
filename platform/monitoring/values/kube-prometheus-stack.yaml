@@ -3,6 +3,20 @@ crds:
 
 alertmanager:
   enabled: true
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname', 'namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'discord'
+    receivers:
+    - name: 'discord'
+      webhook_configs:
+      - url: 'http://alertmanager-discord.monitoring.svc.cluster.local:9094/'
+        send_resolved: true
   alertmanagerSpec:
     replicas: 1
     nodeSelector:
@@ -194,8 +208,8 @@ prometheus:
           resources:
             requests:
               storage: 30Gi
-    nodeSelector:
-      role: platform
+  nodeSelector:
+    role: platform
 
 prometheusOperator:
   image:
@@ -251,3 +265,40 @@ prometheus-node-exporter:
     limits:
       cpu: 100m
       memory: 64Mi
+
+additionalManifests:
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: alertmanager-discord
+      namespace: monitoring
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: alertmanager-discord
+      template:
+        metadata:
+          labels:
+            app: alertmanager-discord
+        spec:
+          containers:
+          - name: alertmanager-discord
+            image: benjojo/alertmanager-discord:latest
+            ports:
+            - containerPort: 9094
+            env:
+            - name: DISCORD_WEBHOOK
+              value: "https://discord.com/api/webhooks/1517439837165060217/cI7CINSHhBWJuFp8p2uaIrze89xbfYPSdhOz3e7o0G8RxbHhXzYkl84BMX1tV8hlAjIy"
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: alertmanager-discord
+      namespace: monitoring
+    spec:
+      selector:
+        app: alertmanager-discord
+      ports:
+      - port: 9094
+        targetPort: 9094
+        name: http
