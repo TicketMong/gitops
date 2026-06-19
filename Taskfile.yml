@@ -24,6 +24,7 @@ vars:
   KONG_PROXY_SERVICE: '{{default "kong-kong-proxy" .KONG_PROXY_SERVICE}}'
   AWS_ARGO_ROOT: '{{default "argo/applications/aws-dev/root.yaml" .AWS_ARGO_ROOT}}'
   ISTIO_PLATFORM: '{{default "platform/istio" .ISTIO_PLATFORM}}'
+  AWS_LOADTEST_WORKFLOW: '{{default "aws-loadtest-run.yml" .AWS_LOADTEST_WORKFLOW}}'
 
 includes:
   observability:
@@ -119,6 +120,33 @@ tasks:
     desc: read API loadtest Job을 1회 실행하고 완료를 기다립니다.
     cmds:
       - task: loadtest:run
+
+  aws:loadtest:
+    desc: GitHub Actions로 aws-dev loadtest Job을 1회 실행합니다. 기본 PRESET=aws-dev-smoke-1m
+    cmds:
+      - |
+        set -eu
+        if ! command -v gh >/dev/null 2>&1; then
+          printf '%s\n' 'gh CLI가 필요합니다. GitHub Actions 화면에서 AWS Loadtest Run workflow를 직접 실행해도 됩니다.' >&2
+          exit 2
+        fi
+        preset="${PRESET:-${LOADTEST_PRESET:-aws-dev-smoke-1m}}"
+        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-reservation-journey-load-test}}"
+        run_id="${LOADTEST_RUN_ID:-}"
+        wait="${LOADTEST_WAIT:-true}"
+        timeout_seconds="${LOADTEST_WAIT_TIMEOUT_SECONDS:-1200}"
+        dry_run="${LOADTEST_DRY_RUN:-false}"
+        printf 'Dispatching aws-dev loadtest workflow preset=%s scenario=%s wait=%s timeout=%s dry_run=%s\n' \
+          "${preset}" "${scenario}" "${wait}" "${timeout_seconds}" "${dry_run}"
+        gh workflow run '{{.AWS_LOADTEST_WORKFLOW}}' \
+          --ref main \
+          -f preset="${preset}" \
+          -f scenario="${scenario}" \
+          -f run_id="${run_id}" \
+          -f wait="${wait}" \
+          -f timeout_seconds="${timeout_seconds}" \
+          -f dry_run="${dry_run}"
+        printf '%s\n' 'Workflow dispatched. 최근 실행 확인: gh run list --workflow "{{.AWS_LOADTEST_WORKFLOW}}" --limit 3'
 
   dev:platform:
     internal: true
