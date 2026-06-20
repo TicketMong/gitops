@@ -54,6 +54,11 @@ medikong.io/scenario: {{ .scenario | quote }}
 {{- $credentialsSecretName := default "" .credentialsSecretName -}}
 serviceAccountName: {{ include "read-api-loadtest.serviceAccountName" $root | quote }}
 restartPolicy: Never
+{{- if $root.Values.reportArchive.enabled }}
+securityContext:
+  fsGroup: 12345
+  fsGroupChangePolicy: OnRootMismatch
+{{- end }}
 {{- with $root.Values.image.pullSecrets }}
 imagePullSecrets:
 {{- range . }}
@@ -71,6 +76,13 @@ containers:
       - |
         if [ "${LOADTEST_SCENARIO:-}" = "setup-capacity-baseline-dataset" ]; then
           exec python3 /loadtest/scripts/setup_capacity_baseline_dataset.py
+        fi
+        if [ "${LOADTEST_COLLECTOR_GUARD_ENABLED:-false}" = "true" ]; then
+          python3 /loadtest/scripts/collector_guard.py
+        fi
+        if [ "${LOADTEST_REPORT_ARCHIVE_ENABLED:-false}" = "true" ]; then
+          export LOADTEST_REPORT_DIR="${LOADTEST_REPORT_ROOT%/}/${LOADTEST_RUN_ID}"
+          mkdir -p "${LOADTEST_REPORT_DIR}"
         fi
         set +e
         k6 run --log-format=raw ${K6_OUTPUT:+--out "$K6_OUTPUT"} {{- range $root.Values.k6.extraArgs }} {{ . | quote }}{{- end }} "/loadtest/scenarios/${LOADTEST_SCENARIO}.js"
@@ -105,6 +117,10 @@ containers:
         valueFrom:
           fieldRef:
             fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: spec.nodeName
       - name: LOADTEST_SCENARIO
         value: {{ $scenario | quote }}
 {{- with $root.Values.extraEnv }}
@@ -112,10 +128,21 @@ containers:
 {{- end }}
     resources:
 {{ toYaml $root.Values.resources | indent 6 }}
+{{- if $root.Values.reportArchive.enabled }}
+    volumeMounts:
+      - name: loadtest-report-archive
+        mountPath: {{ $root.Values.reportArchive.mountPath | quote }}
+{{- end }}
     securityContext:
       allowPrivilegeEscalation: false
       readOnlyRootFilesystem: true
       capabilities:
         drop:
           - ALL
+{{- if $root.Values.reportArchive.enabled }}
+volumes:
+  - name: loadtest-report-archive
+    persistentVolumeClaim:
+      claimName: {{ default (printf "%s-report-archive" (include "read-api-loadtest.fullname" $root)) $root.Values.reportArchive.existingClaim | quote }}
+{{- end }}
 {{- end -}}

@@ -343,10 +343,12 @@ function capacityBaselineServiceSummary(config, rows, service) {
   };
 }
 
-function capacityBaselineReport(config, data) {
+function capacityBaselineReport(config, data, serviceFilter = null) {
   const metrics = data.metrics || {};
   const stepResults = [];
-  for (const serviceConfig of capacityBaselineServiceSteps(config)) {
+  const serviceConfigs = capacityBaselineServiceSteps(config)
+    .filter((serviceConfig) => serviceFilter === null || serviceConfig.service === serviceFilter);
+  for (const serviceConfig of serviceConfigs) {
     for (const stage of capacityBaselineStagesForService(config, serviceConfig.service)) {
       for (const stepConfig of serviceConfig.steps) {
         stepResults.push(capacityBaselineStepResult(
@@ -373,26 +375,38 @@ function capacityBaselineReport(config, data) {
     default_stages: config.stages,
     service_stages: config.serviceStages,
     resource_observation_source: config.resourceObservation && config.resourceObservation.source,
-    services: capacityBaselineServiceSteps(config).map((row) => capacityBaselineServiceSummary(config, stepResults, row.service)),
+    services: serviceConfigs.map((row) => capacityBaselineServiceSummary(config, stepResults, row.service)),
     step_results: stepResults,
   };
 }
 
-function capacityBaselineRunReportLine(config, data) {
+function capacityBaselineRunReport(config, data, reportPhase = 'final', service = null) {
   const result = reportSummary(config, data);
-  return JSON.stringify({
+  return {
     event: 'loadtest_run_report',
     timestamp: new Date().toISOString(),
     test_type: 'loadtest',
     loadtest_run_id: config.runId,
     scenario: config.scenario,
+    report_phase: reportPhase,
+    measured_service: service,
     environment: config.environment,
     target: config.target,
     target_base_url: config.baseUrl,
     status: result.status,
     execution_conditions: experimentConditionFields(config, 'summary'),
-    scenario_report: capacityBaselineReport(config, data),
-  });
+    scenario_report: capacityBaselineReport(config, data, service),
+  };
+}
+
+function capacityBaselineRunReports(config, data) {
+  const serviceReports = capacityBaselineServiceSteps(config).map((serviceConfig) => (
+    capacityBaselineRunReport(config, data, 'service_step_complete', serviceConfig.service)
+  ));
+  return [
+    ...serviceReports,
+    capacityBaselineRunReport(config, data, 'final', null),
+  ];
 }
 
 function stepsFromMetrics(metrics) {
@@ -658,7 +672,23 @@ export function summaryOutput(config, data) {
 }
 
 export function capacityBaselineSummaryOutput(config, data) {
+  const reports = capacityBaselineRunReports(config, data);
+  const output = {
+    stdout: `${reports.map((report) => JSON.stringify(report)).join('\n')}\n`,
+  };
+  if (!config.reportDir) {
+    return output;
+  }
+  const files = {
+    [`${config.reportDir}/metadata.json`]: JSON.stringify(metadata(config), null, 2),
+    [`${config.reportDir}/k6-summary.json`]: JSON.stringify(data, null, 2),
+  };
+  for (const report of reports) {
+    const suffix = report.report_phase === 'final' ? 'final' : report.measured_service;
+    files[`${config.reportDir}/loadtest-run-report-${suffix}.json`] = JSON.stringify(report, null, 2);
+  }
   return {
-    stdout: `${capacityBaselineRunReportLine(config, data)}\n`,
+    ...output,
+    ...files,
   };
 }

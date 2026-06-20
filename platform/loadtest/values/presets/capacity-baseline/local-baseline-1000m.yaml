@@ -27,6 +27,10 @@ manualRuns:
   read:
     activeDeadlineSeconds: 3600
 
+reportArchive:
+  enabled: true
+  size: 2Gi
+
 resources:
   requests:
     cpu: 500m

@@ -71,7 +71,7 @@ manualRuns:
     runId: ""
     hook: Sync
     hookWeight: "0"
-    hookDeletePolicy: BeforeHookCreation,HookSucceeded
+    hookDeletePolicy: BeforeHookCreation
     activeDeadlineSeconds: 1800
     backoffLimit: 0
     ttlSecondsAfterFinished: 86400
@@ -80,10 +80,28 @@ manualRuns:
     runId: ""
     hook: Sync
     hookWeight: "10"
-    hookDeletePolicy: BeforeHookCreation,HookSucceeded
+    hookDeletePolicy: BeforeHookCreation
     activeDeadlineSeconds: 900
     backoffLimit: 0
     ttlSecondsAfterFinished: 86400
+
+reportArchive:
+  enabled: false
+  existingClaim: ""
+  storageClassName: ""
+  size: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  mountPath: /loadtest/reports
+
+collectorGuard:
+  enabled: false
+  namespace: observability
+  labelSelector: app.kubernetes.io/name=opentelemetry-collector
+  timeoutSeconds: 60
+  pollIntervalSeconds: 5
+  rbac:
+    create: true
 
 resources:
   requests:

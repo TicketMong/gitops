@@ -27,6 +27,10 @@ manualRuns:
   read:
     activeDeadlineSeconds: 1200
 
+reportArchive:
+  enabled: true
+  size: 1Gi
+
 scenarios:
   capacityBaseline:
     requestPrefix: loadtest-capacity-baseline
