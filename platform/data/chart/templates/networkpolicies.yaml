@@ -23,6 +23,12 @@ spec:
           podSelector:
             matchLabels:
               app.kubernetes.io/name: pgadmin
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: loadtest
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: read-api-loadtest
       ports:
         - protocol: TCP
           port: 5432
@@ -52,6 +58,12 @@ spec:
           podSelector:
             matchLabels:
               app.kubernetes.io/name: pgadmin
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: loadtest
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: read-api-loadtest
       ports:
         - protocol: TCP
           port: 5432
@@ -81,6 +93,12 @@ spec:
           podSelector:
             matchLabels:
               app.kubernetes.io/name: pgadmin
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: loadtest
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: read-api-loadtest
       ports:
         - protocol: TCP
           port: 5432
@@ -107,6 +125,12 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: pgadmin
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: loadtest
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: read-api-loadtest
       ports:
         - protocol: TCP
           port: 5432
@@ -136,6 +160,12 @@ spec:
           podSelector:
             matchLabels:
               app.kubernetes.io/name: pgadmin
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: loadtest
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: read-api-loadtest
       ports:
         - protocol: TCP
           port: 5432
@@ -159,6 +189,12 @@ spec:
         - podSelector:
             matchLabels:
               app: notification-service
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: loadtest
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: read-api-loadtest
       ports:
         - protocol: TCP
           port: 27017
