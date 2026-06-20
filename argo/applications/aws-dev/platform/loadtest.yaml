@@ -16,7 +16,6 @@ spec:
       valueFiles:
         - values/aws-dev.yaml
         - values/presets/capacity-baseline/aws-dev-baseline-1000m.yaml
-        - values/runs/aws-dev/capacity-baseline-aws-dev-baseline-1000m.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: loadtest
