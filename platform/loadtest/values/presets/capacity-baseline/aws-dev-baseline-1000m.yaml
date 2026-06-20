@@ -79,7 +79,7 @@ scenarios:
       cpuRequest: 1000m
       cpuLimit: none
       authTokenTtlSeconds: "7200"
-      dbProfile: aws-dev-capacity-baseline
+      dbProfile: aws-dev
     seedRowCounts:
       customer_count: 1000
       provider_count: 1

@@ -1,14 +1,43 @@
+deployment:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+
+canary:
+  enabled: false
+
 container:
+  env:
+    - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@auth-db:5432/auth_db
+    - name: AUTH_TOKEN_TTL_SECONDS
+      value: "7200"
+    - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
+      value: "604800"
+    - name: JWT_SECRET
+      value: ticketing-dev-secret
+    - name: JWT_ISSUER
+      value: auth-service
   resources:
     requests:
-      cpu: 500m
+      cpu: 1000m
       memory: 256Mi
     limits:
-      cpu: "2"
+      cpu: null
       memory: 768Mi
 
+database:
+  sqlalchemy:
+    poolSize: 20
+    maxOverflow: 20
+    poolTimeoutSeconds: 10
+    poolRecycleSeconds: 1800
+
+pdb:
+  enabled: false
+
 hpa:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 70
+  enabled: false
