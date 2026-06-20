@@ -351,8 +351,18 @@ scenarios:
     seatLimit: 100
     ticketListLimit: 20
     paymentAmount: 50000
-    paymentPoolCount: 8000
+    calendarYearMonth: "2026-07"
+    performanceDate: "2026-07-01"
+    reservationHistoryCount: 261000
+    reservationPaidCount: 170000
+    reservationCanceledCount: 45500
+    paymentPoolCount: 184000
+    paymentHistoryCount: 184000
+    paymentApprovedCount: 170000
+    ticketIssuePoolCount: 170000
+    ticketHistoryCount: 170000
     ticketsPerCustomer: 20
+    notificationCount: 354000
     notificationsPerCustomer: 20
     targetUtilization: "0.70"
     seedMethod: deterministic_bulk_insert
@@ -370,15 +380,32 @@ scenarios:
       ticket-service: model-v1
       notification-service: model-v1
     seedRowCounts:
-      customer_count: 120
+      customer_count: 100000
       provider_count: 1
       admin_count: 1
-      concert_count: 8
-      performance_count: 16
-      seat_count: 8000
-      payment_pool_count: 8000
-      ticket_count: 2400
-      notification_count: 2400
+      concert_count: 270
+      performance_count: 810
+      seat_count: 567000
+      seat_grade_count: 3240
+      reservation_history_count: 261000
+      payment_pool_count: 184000
+      payment_count: 184000
+      payment_event_count: 184000
+      ticket_issue_pool_count: 170000
+      ticket_count: 170000
+      notification_count: 354000
+    endpointSloP95Ms:
+      capacity_baseline.auth.login: 300
+      capacity_baseline.concert.recommended: 80
+      capacity_baseline.concert.detail: 80
+      capacity_baseline.concert.calendar: 80
+      capacity_baseline.concert.date_performances: 80
+      capacity_baseline.concert.seat_map: 150
+      capacity_baseline.reservation.create: 120
+      capacity_baseline.payment.create: 120
+      capacity_baseline.ticket.issue: 120
+      capacity_baseline.ticket.list: 100
+      capacity_baseline.notification.list: 80
     resourceObservation:
       enabled: false
       source: prometheus

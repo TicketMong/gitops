@@ -37,23 +37,28 @@ const SERVICE_FUNCTIONS = {
 const SERVICE_STEPS = {
   'auth-service': ['capacity_baseline.auth.login'],
   'concert-service': [
-    'capacity_baseline.concert.concerts',
-    'capacity_baseline.concert.performances',
-    'capacity_baseline.concert.seats',
+    'capacity_baseline.concert.recommended',
+    'capacity_baseline.concert.detail',
+    'capacity_baseline.concert.calendar',
+    'capacity_baseline.concert.date_performances',
+    'capacity_baseline.concert.seat_map',
   ],
   'reservation-service': ['capacity_baseline.reservation.create'],
-  'payment-service': ['capacity_baseline.payment.approve'],
-  'ticket-service': ['capacity_baseline.ticket.list'],
+  'payment-service': ['capacity_baseline.payment.create'],
+  'ticket-service': ['capacity_baseline.ticket.issue', 'capacity_baseline.ticket.list'],
   'notification-service': ['capacity_baseline.notification.list'],
 };
 const ACTIVE_SERVICE_ORDER = config.serviceSteps || SERVICE_ORDER;
 const STEP_API = {
   'capacity_baseline.auth.login': { method: 'POST', route: 'POST /auth/login' },
-  'capacity_baseline.concert.concerts': { method: 'GET', route: 'GET /concerts' },
-  'capacity_baseline.concert.performances': { method: 'GET', route: 'GET /concerts/{concertId}/performances' },
-  'capacity_baseline.concert.seats': { method: 'GET', route: 'GET /performances/{performanceId}/seats' },
+  'capacity_baseline.concert.recommended': { method: 'GET', route: 'GET /concerts/recommended?sort=latest&cursor={cursor}' },
+  'capacity_baseline.concert.detail': { method: 'GET', route: 'GET /concerts/{concertId}' },
+  'capacity_baseline.concert.calendar': { method: 'GET', route: 'GET /concerts/{concertId}/calendar?yearMonth=YYYY-MM' },
+  'capacity_baseline.concert.date_performances': { method: 'GET', route: 'GET /concerts/{concertId}/dates/{date}/performances' },
+  'capacity_baseline.concert.seat_map': { method: 'GET', route: 'GET /performances/{performanceId}/seat-map' },
   'capacity_baseline.reservation.create': { method: 'POST', route: 'POST /reservations' },
-  'capacity_baseline.payment.approve': { method: 'POST', route: 'POST /payments' },
+  'capacity_baseline.payment.create': { method: 'POST', route: 'POST /payments' },
+  'capacity_baseline.ticket.issue': { method: 'POST', route: 'POST /tickets/issue' },
   'capacity_baseline.ticket.list': { method: 'GET', route: 'GET /tickets/me' },
   'capacity_baseline.notification.list': { method: 'GET', route: 'GET /notifications' },
 };
@@ -137,8 +142,9 @@ function capacityThresholds() {
     for (const stage of stagesForService(service)) {
       for (const step of SERVICE_STEPS[service]) {
         const tags = thresholdTags(service, step, stage);
+        const sloP95Ms = config.endpointSloP95Ms[step] || config.thresholds.httpReqDurationP95Ms;
         thresholds[`http_req_duration{${tags}}`] = [
-          `p(95)<${config.thresholds.httpReqDurationP95Ms}`,
+          `p(95)<${sloP95Ms}`,
           `p(99)<${config.thresholds.httpReqDurationP99Ms}`,
         ];
         thresholds[`http_req_failed{${tags}}`] = [`rate<${config.thresholds.httpReqFailedRate}`];
@@ -336,6 +342,24 @@ function itemsFrom(body, step) {
   return items;
 }
 
+function firstFrom(body, field, step) {
+  const values = body && body[field];
+  if (!Array.isArray(values) || values.length === 0) {
+    fail(`${step} returned no ${field} array`);
+  }
+  return values[exec.scenario.iterationInTest % values.length] || values[0];
+}
+
+function valueFrom(body, fields, step) {
+  for (const field of fields) {
+    if (body && body[field] !== undefined && body[field] !== null && body[field] !== '') {
+      return body[field];
+    }
+  }
+  fail(`${step} returned none of ${fields.join(', ')}`);
+  return null;
+}
+
 function capacityId(prefix, number) {
   return `${config.dataset.revision}-${prefix}-${String(number).padStart(6, '0')}`;
 }
@@ -489,27 +513,43 @@ export function measureAuth(setupData) {
 export function measureConcert(setupData) {
   const runConfig = iterationConfig(setupData, 'concert-service');
   try {
-    const concertsBody = requestJson(runConfig, 'capacity_baseline.concert.concerts', 'GET', '/concerts', null, {}, { limit: runConfig.concertLimit });
-    const concerts = itemsFrom(concertsBody, 'capacity_baseline.concert.concerts');
-    const concert = concerts[exec.scenario.iterationInTest % concerts.length] || concerts[0];
-    const concertId = requireField(concert, 'id', 'capacity_baseline.concert.concerts');
+    const concertsBody = requestJson(
+      runConfig,
+      'capacity_baseline.concert.recommended',
+      'GET',
+      '/concerts/recommended',
+      null,
+      {},
+      { sort: 'latest', cursor: setupData.recommendedCursor, limit: runConfig.concertLimit },
+    );
+    itemsFrom(concertsBody, 'capacity_baseline.concert.recommended');
+    const concertId = setupData.concertId;
+    requestJson(runConfig, 'capacity_baseline.concert.detail', 'GET', `/concerts/${encodeURIComponent(concertId)}`);
+    requestJson(
+      runConfig,
+      'capacity_baseline.concert.calendar',
+      'GET',
+      `/concerts/${encodeURIComponent(concertId)}/calendar`,
+      null,
+      {},
+      { yearMonth: runConfig.calendarYearMonth },
+    );
     const performancesBody = requestJson(
       runConfig,
-      'capacity_baseline.concert.performances',
+      'capacity_baseline.concert.date_performances',
       'GET',
-      `/concerts/${encodeURIComponent(concertId)}/performances`,
+      `/concerts/${encodeURIComponent(concertId)}/dates/${encodeURIComponent(runConfig.performanceDate)}/performances`,
       null,
       {},
       { limit: runConfig.performanceLimit },
     );
-    const performances = itemsFrom(performancesBody, 'capacity_baseline.concert.performances');
-    const performance = performances[exec.scenario.iterationInTest % performances.length] || performances[0];
-    const performanceId = requireField(performance, 'id', 'capacity_baseline.concert.performances');
+    const performance = firstFrom(performancesBody, 'performances', 'capacity_baseline.concert.date_performances');
+    const performanceId = valueFrom(performance, ['performanceId', 'id'], 'capacity_baseline.concert.date_performances');
     requestJson(
       runConfig,
-      'capacity_baseline.concert.seats',
+      'capacity_baseline.concert.seat_map',
       'GET',
-      `/performances/${encodeURIComponent(performanceId)}/seats`,
+      `/performances/${encodeURIComponent(performanceId)}/seat-map`,
       null,
       {},
       { limit: runConfig.seatLimit },
@@ -547,7 +587,7 @@ export function measurePayment(setupData) {
   try {
     requestJson(
       runConfig,
-      'capacity_baseline.payment.approve',
+      'capacity_baseline.payment.create',
       'POST',
       '/payments',
       {
@@ -570,7 +610,23 @@ export function measurePayment(setupData) {
 
 export function measureTicket(setupData) {
   const runConfig = iterationConfig(setupData, 'ticket-service');
+  const iteration = exec.scenario.iterationInTest + 1;
+  const poolIndex = ((iteration - 1) % runConfig.ticketIssuePoolCount) + 1;
+  const token = customerToken(setupData);
   try {
+    requestJson(
+      runConfig,
+      'capacity_baseline.ticket.issue',
+      'POST',
+      '/tickets/issue',
+      {
+        reservationId: capacityId('paid-reservation', poolIndex),
+        userId: token.userId,
+        concertId: setupData.concertId,
+        seatId: capacityId('ticket-issue-seat', poolIndex),
+      },
+      authHeaders(setupData),
+    );
     requestJson(
       runConfig,
       'capacity_baseline.ticket.list',

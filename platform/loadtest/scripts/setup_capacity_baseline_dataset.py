@@ -14,14 +14,21 @@ from pymongo.errors import BulkWriteError
 from pymongo import MongoClient
 
 
-REVISION = os.getenv("LOADTEST_DATASET_REVISION", "capacity-baseline-v1")
+REVISION = os.getenv("LOADTEST_DATASET_REVISION", "capacity-baseline-half-year-early-growth-v2")
 PASSWORD = os.getenv("LOADTEST_CUSTOMER_POOL_PASSWORD", "loadtest1234")
 EMAIL_PREFIX = os.getenv("LOADTEST_CUSTOMER_POOL_EMAIL_PREFIX", "capacity-customer")
 EMAIL_DOMAIN = os.getenv("LOADTEST_CUSTOMER_POOL_EMAIL_DOMAIN", "loadtest.medikong.local")
-CUSTOMER_COUNT = int(os.getenv("LOADTEST_CUSTOMER_POOL_SIZE", "120"))
+CUSTOMER_COUNT = int(os.getenv("LOADTEST_CUSTOMER_POOL_SIZE", "100000"))
 PROVIDER_ID = 910001
 ADMIN_ID = 910002
 CUSTOMER_ID_BASE = 920000
+BASE_SHOWTIME_DATE = os.getenv("LOADTEST_CAPACITY_BASELINE_PERFORMANCE_DATE", "2026-07-01")
+PAYMENT_AMOUNT = int(os.getenv("LOADTEST_CAPACITY_BASELINE_PAYMENT_AMOUNT", "50000"))
+
+
+def env_int(name: str, fallback: int) -> int:
+    value = os.getenv(name)
+    return fallback if value in (None, "") else int(value)
 
 
 def _hash_password(password: str) -> str:
@@ -120,6 +127,8 @@ def _copy_value(value):
         return "true" if value else "false"
     if isinstance(value, datetime):
         return value.isoformat()
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, separators=(",", ":"))
     return value
 
 
@@ -188,12 +197,13 @@ def seed_auth(counts: dict):
 
 
 def seed_concert(counts: dict):
-    concert_count = int(os.getenv("LOADTEST_DATASET_CONCERTS", "8"))
-    performances_per_concert = int(os.getenv("LOADTEST_DATASET_PERFORMANCES_PER_CONCERT", "2"))
-    seat_rows = int(os.getenv("LOADTEST_DATASET_SEAT_ROWS", "10"))
-    seats_per_row = int(os.getenv("LOADTEST_DATASET_SEATS_PER_ROW", "50"))
+    concert_count = env_int("LOADTEST_DATASET_CONCERTS", 270)
+    performances_per_concert = env_int("LOADTEST_DATASET_PERFORMANCES_PER_CONCERT", 3)
+    seat_rows = env_int("LOADTEST_DATASET_SEAT_ROWS", 20)
+    seats_per_row = env_int("LOADTEST_DATASET_SEATS_PER_ROW", 35)
     total_seats_per_performance = seat_rows * seats_per_row
     now = datetime.now(timezone.utc)
+    base_date = datetime.fromisoformat(BASE_SHOWTIME_DATE).replace(tzinfo=timezone.utc)
     with pg("LOADTEST_CAPACITY_BASELINE_CONCERT_DATABASE_URL", "postgresql://user:password@concert-db:5432/concert_db") as connection:
         cursor = connection.cursor()
         require_table(cursor, "concerts", {"id", "provider_id", "title", "age_rating", "running_minutes", "status", "created_at", "opens_at", "open_schedule_status"})
@@ -237,12 +247,19 @@ def seed_concert(counts: dict):
             ))
             for performance_index in range(1, performances_per_concert + 1):
                 showtime_id = f"{REVISION}-showtime-{concert_index:04d}-{performance_index:04d}"
-                starts_at = now + timedelta(days=concert_index, hours=performance_index)
+                starts_at = base_date + timedelta(days=concert_index - 1, hours=performance_index - 1)
                 showtimes.append((showtime_id, concert_id, venue_id, starts_at, starts_at + timedelta(hours=2), "open"))
-                grades.append((f"{REVISION}-grade-{concert_index:04d}-{performance_index:04d}", showtime_id, "R", 50000, "#3366cc"))
+                for grade_index, (grade_name, price, color) in enumerate((
+                    ("VIP", 150000, "#d97706"),
+                    ("R", 120000, "#2563eb"),
+                    ("S", 90000, "#16a34a"),
+                    ("A", 60000, "#7c3aed"),
+                ), start=1):
+                    grades.append((f"{REVISION}-grade-{concert_index:04d}-{performance_index:04d}-{grade_index}", showtime_id, grade_name, price, color))
                 for row in range(1, seat_rows + 1):
                     for number in range(1, seats_per_row + 1):
-                        seats.append((f"{REVISION}-seat-{seat_seq:06d}", showtime_id, "A", f"{row}", f"{number}", "sellable"))
+                        section = chr(ord("A") + ((row - 1) % 4))
+                        seats.append((f"{REVISION}-seat-{seat_seq:06d}", showtime_id, section, f"{row}", f"{number}", "sellable"))
                         seat_seq += 1
         copy_rows(cursor, "venues", ("id", "name", "address", "total_seats"), venues)
         copy_rows(
@@ -257,10 +274,17 @@ def seed_concert(counts: dict):
         counts["concert.concerts"] = expect_count("concert.concerts", row_count(cursor, "select count(*) from concerts where id like %s", (f"{REVISION}-concert-%",)), concert_count)
         counts["concert.showtimes"] = expect_count("concert.showtimes", row_count(cursor, "select count(*) from showtimes where id like %s", (f"{REVISION}-showtime-%",)), concert_count * performances_per_concert)
         counts["concert.seats"] = expect_count("concert.seats", row_count(cursor, "select count(*) from seats where id like %s", (f"{REVISION}-seat-%",)), len(seats))
+        counts["concert.seat_grades"] = expect_count("concert.seat_grades", row_count(cursor, "select count(*) from seat_grades where id like %s", (f"{REVISION}-grade-%",)), len(grades))
 
 
 def seed_reservation(counts: dict):
-    total_seats = int(os.getenv("LOADTEST_DATASET_CONCERTS", "8")) * int(os.getenv("LOADTEST_DATASET_PERFORMANCES_PER_CONCERT", "2")) * int(os.getenv("LOADTEST_DATASET_SEAT_ROWS", "10")) * int(os.getenv("LOADTEST_DATASET_SEATS_PER_ROW", "50"))
+    concert_count = env_int("LOADTEST_DATASET_CONCERTS", 270)
+    performances_per_concert = env_int("LOADTEST_DATASET_PERFORMANCES_PER_CONCERT", 3)
+    total_seats = concert_count * performances_per_concert * env_int("LOADTEST_DATASET_SEAT_ROWS", 20) * env_int("LOADTEST_DATASET_SEATS_PER_ROW", 35)
+    reservation_history_count = env_int("LOADTEST_CAPACITY_BASELINE_RESERVATION_HISTORY_COUNT", 261000)
+    paid_history_count = env_int("LOADTEST_CAPACITY_BASELINE_RESERVATION_PAID_COUNT", 170000)
+    canceled_history_count = env_int("LOADTEST_CAPACITY_BASELINE_RESERVATION_CANCELED_COUNT", 45500)
+    payment_pool = env_int("LOADTEST_CAPACITY_BASELINE_PAYMENT_POOL_COUNT", 184000)
     now = datetime.now(timezone.utc)
     with pg("LOADTEST_CAPACITY_BASELINE_RESERVATION_DATABASE_URL", "postgresql://user:password@reservation-db:5432/reservation_db") as connection:
         cursor = connection.cursor()
@@ -291,13 +315,34 @@ def seed_reservation(counts: dict):
         cursor.execute("delete from sales_states where concert_id like %s", (f"{REVISION}-concert-%",))
         cursor.execute("delete from queue_policies where concert_id like %s", (f"{REVISION}-concert-%",))
         cursor.execute("delete from traffic_policies where concert_id like %s", (f"{REVISION}-concert-%",))
-        concert_count = int(os.getenv("LOADTEST_DATASET_CONCERTS", "8"))
         sales = [(f"{REVISION}-concert-{index:04d}", "open", total_seats, now) for index in range(1, concert_count + 1)]
         execute_values(cursor, "insert into sales_states (concert_id, sales_status, total_seats, updated_at) values %s on conflict (concert_id) do update set sales_status = excluded.sales_status, total_seats = excluded.total_seats, updated_at = excluded.updated_at", sales)
         execute_values(cursor, "insert into queue_policies (concert_id, enabled, max_entrants_per_minute, waiting_room_url) values %s on conflict (concert_id) do update set enabled = excluded.enabled, max_entrants_per_minute = excluded.max_entrants_per_minute", [(row[0], False, None, None) for row in sales])
         execute_values(cursor, "insert into traffic_policies (concert_id, macro_protection_enabled, max_requests_per_user_per_minute, block_suspicious_traffic) values %s on conflict (concert_id) do update set macro_protection_enabled = excluded.macro_protection_enabled, max_requests_per_user_per_minute = excluded.max_requests_per_user_per_minute, block_suspicious_traffic = excluded.block_suspicious_traffic", [(row[0], False, None, False) for row in sales])
-        payment_pool = int(os.getenv("LOADTEST_CAPACITY_BASELINE_PAYMENT_POOL_COUNT", str(total_seats)))
         reservations = []
+        for index in range(1, reservation_history_count + 1):
+            if index <= paid_history_count:
+                status = "paid"
+            elif index <= paid_history_count + canceled_history_count:
+                status = "canceled"
+            else:
+                status = "expired"
+            concert_index = ((index - 1) % concert_count) + 1
+            performance_index = ((index - 1) % performances_per_concert) + 1
+            showtime_id = f"{REVISION}-showtime-{concert_index:04d}-{performance_index:04d}"
+            reservations.append((
+                f"{REVISION}-reservation-history-{index:06d}",
+                str(CUSTOMER_ID_BASE + ((index - 1) % CUSTOMER_COUNT) + 1),
+                f"{REVISION}-concert-{concert_index:04d}",
+                showtime_id,
+                showtime_id,
+                f"{REVISION}-history-seat-{index:06d}",
+                status,
+                None,
+                now - timedelta(days=1),
+                now - timedelta(days=index % 180),
+                now - timedelta(days=index % 180),
+            ))
         for index in range(1, payment_pool + 1):
             reservations.append((
                 f"{REVISION}-pending-reservation-{index:06d}",
@@ -314,32 +359,75 @@ def seed_reservation(counts: dict):
             ))
         copy_rows(cursor, "reservations", ("id", "user_id", "concert_id", "showtime_id", "performance_id", "seat_id", "status", "active_seat_key", "expires_at", "created_at", "updated_at"), reservations)
         counts["reservation.sales_states"] = expect_count("reservation.sales_states", row_count(cursor, "select count(*) from sales_states where concert_id like %s", (f"{REVISION}-concert-%",)), concert_count)
+        counts["reservation.history"] = expect_count("reservation.history", row_count(cursor, "select count(*) from reservations where id like %s", (f"{REVISION}-reservation-history-%",)), reservation_history_count)
         counts["reservation.pending_pool"] = expect_count("reservation.pending_pool", row_count(cursor, "select count(*) from reservations where id like %s", (f"{REVISION}-pending-reservation-%",)), payment_pool)
 
 
 def seed_payment(counts: dict):
+    payment_count = env_int("LOADTEST_CAPACITY_BASELINE_PAYMENT_HISTORY_COUNT", 184000)
+    approved_count = env_int("LOADTEST_CAPACITY_BASELINE_PAYMENT_APPROVED_COUNT", 170000)
+    now = datetime.now(timezone.utc)
     with pg("LOADTEST_CAPACITY_BASELINE_PAYMENT_DATABASE_URL", "postgresql://user:password@payment-db:5432/payment_db") as connection:
         cursor = connection.cursor()
         require_table(cursor, "payments", {"id", "reservation_id", "concert_id", "user_id", "amount", "method", "status", "idempotency_key", "approved_at", "created_at"})
+        require_table(cursor, "payment_events", {"id", "event_type", "payment_id", "payload", "trace_context", "publish_status", "published_at", "publish_attempts", "last_publish_error", "created_at"})
         require_unique_columns(cursor, "payments", ("user_id", "idempotency_key"))
         cursor.execute(
             """
             delete from payments
-            where reservation_id like %s
+            where id like %s
+               or reservation_id like %s
                or concert_id like %s
                or idempotency_key like %s
             """,
             (
+                f"{REVISION}-payment-%",
                 f"{REVISION}-%",
                 f"{REVISION}-concert-%",
                 f"{REVISION}-payment-idempotency-%",
             ),
         )
-        counts["payment.payments"] = row_count(cursor, "select count(*) from payments where reservation_id like %s", (f"{REVISION}-%",))
+        cursor.execute("delete from payment_events where id like %s or payment_id like %s", (f"{REVISION}-payment-event-%", f"{REVISION}-payment-%"))
+        payments = []
+        events = []
+        for index in range(1, payment_count + 1):
+            status = "approved" if index <= approved_count else "failed"
+            payment_id = f"{REVISION}-payment-{index:06d}"
+            reservation_id = f"{REVISION}-payment-history-reservation-{index:06d}"
+            concert_id = f"{REVISION}-concert-{((index - 1) % env_int('LOADTEST_DATASET_CONCERTS', 270)) + 1:04d}"
+            user_id = str(CUSTOMER_ID_BASE + ((index - 1) % CUSTOMER_COUNT) + 1)
+            payments.append((
+                payment_id,
+                reservation_id,
+                concert_id,
+                user_id,
+                PAYMENT_AMOUNT,
+                "CARD",
+                status,
+                f"{REVISION}-payment-idempotency-history-{index:06d}",
+                now if status == "approved" else None,
+                now,
+            ))
+            events.append((
+                f"{REVISION}-payment-event-{index:06d}",
+                "payment-approved" if status == "approved" else "payment-failed",
+                payment_id,
+                {"reservationId": reservation_id, "paymentId": payment_id, "status": status},
+                None,
+                "published",
+                now,
+                0,
+                None,
+                now,
+            ))
+        copy_rows(cursor, "payments", ("id", "reservation_id", "concert_id", "user_id", "amount", "method", "status", "idempotency_key", "approved_at", "created_at"), payments)
+        copy_rows(cursor, "payment_events", ("id", "event_type", "payment_id", "payload", "trace_context", "publish_status", "published_at", "publish_attempts", "last_publish_error", "created_at"), events)
+        counts["payment.payments"] = expect_count("payment.payments", row_count(cursor, "select count(*) from payments where id like %s", (f"{REVISION}-payment-%",)), payment_count)
+        counts["payment.payment_events"] = expect_count("payment.payment_events", row_count(cursor, "select count(*) from payment_events where id like %s", (f"{REVISION}-payment-event-%",)), payment_count)
 
 
 def seed_ticket(counts: dict):
-    tickets_per_customer = int(os.getenv("LOADTEST_CAPACITY_BASELINE_TICKETS_PER_CUSTOMER", "20"))
+    ticket_count = env_int("LOADTEST_CAPACITY_BASELINE_TICKET_HISTORY_COUNT", 170000)
     now = datetime.now(timezone.utc)
     with pg("LOADTEST_CAPACITY_BASELINE_TICKET_DATABASE_URL", "postgresql://user:password@ticket-db:5432/ticket_db") as connection:
         cursor = connection.cursor()
@@ -351,56 +439,56 @@ def seed_ticket(counts: dict):
             where reservation_id like %s
                or concert_id like %s
                or seat_id like %s
+               or reservation_id like %s
+               or seat_id like %s
             """,
             (
                 f"{REVISION}-ticket-reservation-%",
                 f"{REVISION}-concert-%",
                 f"{REVISION}-ticket-seat-%",
+                f"{REVISION}-paid-reservation-%",
+                f"{REVISION}-ticket-issue-seat-%",
             ),
         )
         rows = []
-        for customer_index in range(1, CUSTOMER_COUNT + 1):
-            user_id = str(CUSTOMER_ID_BASE + customer_index)
-            for ticket_index in range(1, tickets_per_customer + 1):
-                global_index = ((customer_index - 1) * tickets_per_customer) + ticket_index
-                rows.append((
-                    f"{REVISION}-ticket-reservation-{global_index:06d}",
-                    user_id,
-                    f"{REVISION}-concert-0001",
-                    f"{REVISION}-ticket-seat-{global_index:06d}",
-                    "ISSUED",
-                    f"https://tickets.local/{REVISION}/{global_index}.png",
-                    f"https://tickets.local/{REVISION}/{global_index}.pdf",
-                    now,
-                ))
+        for index in range(1, ticket_count + 1):
+            rows.append((
+                f"{REVISION}-ticket-reservation-{index:06d}",
+                str(CUSTOMER_ID_BASE + ((index - 1) % CUSTOMER_COUNT) + 1),
+                f"{REVISION}-concert-{((index - 1) % env_int('LOADTEST_DATASET_CONCERTS', 270)) + 1:04d}",
+                f"{REVISION}-ticket-seat-{index:06d}",
+                "ISSUED",
+                f"https://tickets.local/{REVISION}/{index}.png",
+                f"https://tickets.local/{REVISION}/{index}.pdf",
+                now,
+            ))
         copy_rows(cursor, "tickets", ("reservation_id", "user_id", "concert_id", "seat_id", "status", "qr_url", "pdf_url", "issued_at"), rows)
         counts["ticket.tickets"] = expect_count("ticket.tickets", row_count(cursor, "select count(*) from tickets where reservation_id like %s", (f"{REVISION}-ticket-reservation-%",)), len(rows))
 
 
 def seed_notification(counts: dict):
-    per_customer = int(os.getenv("LOADTEST_CAPACITY_BASELINE_NOTIFICATIONS_PER_CUSTOMER", "20"))
+    notification_count = env_int("LOADTEST_CAPACITY_BASELINE_NOTIFICATION_COUNT", 354000)
     client = MongoClient(os.getenv("LOADTEST_CAPACITY_BASELINE_MONGODB_URL", os.getenv("MONGODB_URL", "mongodb://notification-db:27017")))
     db = client[os.getenv("LOADTEST_CAPACITY_BASELINE_MONGODB_DB_NAME", os.getenv("MONGODB_DB_NAME", "notification_db"))]
     db.notifications.delete_many({"source_id": {"$regex": f"^{REVISION}-notification-source-"}})
     documents = []
     now = datetime.now(timezone.utc)
-    for customer_index in range(1, CUSTOMER_COUNT + 1):
-        user_id = str(CUSTOMER_ID_BASE + customer_index)
-        for notification_index in range(1, per_customer + 1):
-            source_id = f"{REVISION}-notification-source-{customer_index:06d}-{notification_index:04d}"
-            documents.append({
-                "_id": source_id,
-                "user_id": user_id,
-                "type": "capacity-baseline",
-                "message": f"Capacity baseline notification {notification_index}",
-                "status": "CREATED",
-                "source_id": source_id,
-                "metadata": {"dataset_revision": REVISION},
-                "created_at": now,
-            })
+    for index in range(1, notification_count + 1):
+        source_id = f"{REVISION}-notification-source-{index:06d}"
+        documents.append({
+            "_id": source_id,
+            "user_id": str(CUSTOMER_ID_BASE + ((index - 1) % CUSTOMER_COUNT) + 1),
+            "type": "capacity-baseline",
+            "message": f"Capacity baseline notification {index}",
+            "status": "CREATED",
+            "source_id": source_id,
+            "metadata": {"dataset_revision": REVISION},
+            "created_at": now - timedelta(days=index % 90),
+        })
     if documents:
         try:
-            db.notifications.insert_many(documents, ordered=False)
+            for start in range(0, len(documents), 1000):
+                db.notifications.insert_many(documents[start:start + 1000], ordered=False)
         except BulkWriteError as error:
             unexpected_errors = [
                 write_error for write_error in error.details.get("writeErrors", [])

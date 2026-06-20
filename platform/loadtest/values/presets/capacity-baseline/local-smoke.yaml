@@ -8,7 +8,7 @@ trafficModel:
 dataset:
   scenario: setup-capacity-baseline-dataset
   profile: capacity-baseline
-  revision: capacity-baseline-v1
+  revision: capacity-baseline-half-year-early-growth-v2-smoke
   concerts: 4
   performancesPerConcert: 2
   seatSections: 1
@@ -19,7 +19,7 @@ dataset:
     emailPrefix: capacity-customer
     emailDomain: loadtest.medikong.local
     password: loadtest1234
-    revision: capacity-baseline-v1
+    revision: capacity-baseline-half-year-early-growth-v2-smoke
 
 manualRuns:
   dataset:
@@ -55,10 +55,20 @@ scenarios:
     concertLimit: 10
     performanceLimit: 10
     seatLimit: 100
+    calendarYearMonth: "2026-07"
+    performanceDate: "2026-07-01"
     ticketListLimit: 20
     paymentAmount: 50000
+    reservationHistoryCount: 1200
+    reservationPaidCount: 800
+    reservationCanceledCount: 200
     paymentPoolCount: 1200
+    paymentHistoryCount: 1200
+    paymentApprovedCount: 1000
+    ticketIssuePoolCount: 1000
+    ticketHistoryCount: 1000
     ticketsPerCustomer: 20
+    notificationCount: 1200
     notificationsPerCustomer: 20
     targetUtilization: "0.70"
     seedMethod: deterministic_bulk_insert
@@ -75,9 +85,26 @@ scenarios:
       concert_count: 4
       performance_count: 8
       seat_count: 1200
+      seat_grade_count: 32
+      reservation_history_count: 1200
       payment_pool_count: 1200
-      ticket_count: 1200
+      payment_count: 1200
+      payment_event_count: 1200
+      ticket_issue_pool_count: 1000
+      ticket_count: 1000
       notification_count: 1200
+    endpointSloP95Ms:
+      capacity_baseline.auth.login: 300
+      capacity_baseline.concert.recommended: 80
+      capacity_baseline.concert.detail: 80
+      capacity_baseline.concert.calendar: 80
+      capacity_baseline.concert.date_performances: 80
+      capacity_baseline.concert.seat_map: 150
+      capacity_baseline.reservation.create: 120
+      capacity_baseline.payment.create: 120
+      capacity_baseline.ticket.issue: 120
+      capacity_baseline.ticket.list: 100
+      capacity_baseline.notification.list: 80
     resourceObservation:
       enabled: true
       source: metrics-api
@@ -88,6 +115,6 @@ scenarios:
         create: true
     thresholds:
       httpReqFailedRate: "0.01"
-      httpReqDurationP95Ms: "100"
+      httpReqDurationP95Ms: "150"
       httpReqDurationP99Ms: "300"
       checksRate: "0.99"

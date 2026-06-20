@@ -252,9 +252,11 @@ function capacityBaselineServiceSteps(config = {}) {
     {
       service: 'concert-service',
       steps: [
-        { step: 'capacity_baseline.concert.concerts', api: 'GET /concerts' },
-        { step: 'capacity_baseline.concert.performances', api: 'GET /concerts/{concertId}/performances' },
-        { step: 'capacity_baseline.concert.seats', api: 'GET /performances/{performanceId}/seats' },
+        { step: 'capacity_baseline.concert.recommended', api: 'GET /concerts/recommended?sort=latest&cursor={cursor}' },
+        { step: 'capacity_baseline.concert.detail', api: 'GET /concerts/{concertId}' },
+        { step: 'capacity_baseline.concert.calendar', api: 'GET /concerts/{concertId}/calendar?yearMonth=YYYY-MM' },
+        { step: 'capacity_baseline.concert.date_performances', api: 'GET /concerts/{concertId}/dates/{date}/performances' },
+        { step: 'capacity_baseline.concert.seat_map', api: 'GET /performances/{performanceId}/seat-map' },
       ],
     },
     {
@@ -266,12 +268,13 @@ function capacityBaselineServiceSteps(config = {}) {
     {
       service: 'payment-service',
       steps: [
-        { step: 'capacity_baseline.payment.approve', api: 'POST /payments' },
+        { step: 'capacity_baseline.payment.create', api: 'POST /payments' },
       ],
     },
     {
       service: 'ticket-service',
       steps: [
+        { step: 'capacity_baseline.ticket.issue', api: 'POST /tickets/issue' },
         { step: 'capacity_baseline.ticket.list', api: 'GET /tickets/me' },
       ],
     },
@@ -296,9 +299,10 @@ function capacityBaselineStepResult(config, metrics, service, step, api, stage) 
   const errorRate = metricValue(metrics, metricNameWithTags('http_req_failed', metricTags), 'rate');
   const cpuUsage = metricValue(metrics, metricNameWithTags('loadtest_capacity_cpu_usage_m', serviceTags), 'avg');
   const throttling = metricValue(metrics, metricNameWithTags('loadtest_capacity_cpu_throttling_ratio', serviceTags), 'avg');
+  const sloP95Ms = Number((config.endpointSloP95Ms || {})[step] || config.thresholds.httpReqDurationP95Ms);
   const reasons = [];
-  if (p95 !== null && p95 >= config.thresholds.httpReqDurationP95Ms) {
-    reasons.push('p95_threshold');
+  if (p95 !== null && p95 >= sloP95Ms) {
+    reasons.push('slo_p95_ms');
   }
   if (errorRate !== null && errorRate >= config.thresholds.httpReqFailedRate) {
     reasons.push('error_rate_threshold');
@@ -314,12 +318,14 @@ function capacityBaselineStepResult(config, metrics, service, step, api, stage) 
     target_rps: Number(stage.target),
     per_pod_rps: Number(stage.target),
     duration: stage.duration,
+    slo_p95_ms: sloP95Ms,
     p95_ms: p95,
     p99_ms: p99,
     error_rate: errorRate,
     cpu_usage_m: cpuUsage,
     cpu_throttling: throttling,
     request_candidate_m: cpuUsage === null ? null : Math.ceil(cpuUsage / config.targetUtilization),
+    pass: reasons.length === 0,
     status: reasons.length === 0 ? 'valid' : 'limit_candidate',
     decision_reasons: reasons,
   };
@@ -327,10 +333,22 @@ function capacityBaselineStepResult(config, metrics, service, step, api, stage) 
 
 function capacityBaselineServiceSummary(config, rows, service) {
   const serviceRows = rows.filter((row) => row.service === service);
-  const validRows = serviceRows.filter((row) => row.status === 'valid');
-  const best = validRows.length === 0
+  const stages = capacityBaselineStagesForService(config, service).map((stage) => {
+    const capacityStep = capacityBaselineStageId(service, stage);
+    const stageRows = serviceRows.filter((row) => row.capacity_step === capacityStep);
+    const valid = stageRows.length > 0 && stageRows.every((row) => row.status === 'valid');
+    return {
+      capacity_step: capacityStep,
+      target_rps: Number(stage.target),
+      valid,
+      cpu_usage_m: stageRows.find((row) => row.cpu_usage_m !== null)?.cpu_usage_m ?? null,
+      request_candidate_m: stageRows.find((row) => row.request_candidate_m !== null)?.request_candidate_m ?? null,
+    };
+  });
+  const validStages = stages.filter((stage) => stage.valid);
+  const best = validStages.length === 0
     ? null
-    : validRows.reduce((current, row) => (row.target_rps >= current.target_rps ? row : current), validRows[0]);
+    : validStages.reduce((current, row) => (row.target_rps >= current.target_rps ? row : current), validStages[0]);
   return {
     service,
     stages: capacityBaselineStagesForService(config, service),
@@ -370,6 +388,7 @@ function capacityBaselineReport(config, data, serviceFilter = null) {
     seed_method: config.seedMethod,
     schema_revisions: config.schemaRevisions,
     seed_row_counts: config.seedRowCounts,
+    endpoint_slo_p95_ms: config.endpointSloP95Ms,
     target_utilization: config.targetUtilization,
     service_steps: config.serviceSteps,
     default_stages: config.stages,

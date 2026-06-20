@@ -201,16 +201,27 @@ data:
   LOADTEST_CAPACITY_BASELINE_CONCERT_LIMIT: {{ .Values.scenarios.capacityBaseline.concertLimit | quote }}
   LOADTEST_CAPACITY_BASELINE_PERFORMANCE_LIMIT: {{ .Values.scenarios.capacityBaseline.performanceLimit | quote }}
   LOADTEST_CAPACITY_BASELINE_SEAT_LIMIT: {{ .Values.scenarios.capacityBaseline.seatLimit | quote }}
+  LOADTEST_CAPACITY_BASELINE_CALENDAR_YEAR_MONTH: {{ .Values.scenarios.capacityBaseline.calendarYearMonth | quote }}
+  LOADTEST_CAPACITY_BASELINE_PERFORMANCE_DATE: {{ .Values.scenarios.capacityBaseline.performanceDate | quote }}
   LOADTEST_CAPACITY_BASELINE_TICKET_LIST_LIMIT: {{ .Values.scenarios.capacityBaseline.ticketListLimit | quote }}
   LOADTEST_CAPACITY_BASELINE_PAYMENT_AMOUNT: {{ .Values.scenarios.capacityBaseline.paymentAmount | quote }}
+  LOADTEST_CAPACITY_BASELINE_RESERVATION_HISTORY_COUNT: {{ .Values.scenarios.capacityBaseline.reservationHistoryCount | quote }}
+  LOADTEST_CAPACITY_BASELINE_RESERVATION_PAID_COUNT: {{ .Values.scenarios.capacityBaseline.reservationPaidCount | quote }}
+  LOADTEST_CAPACITY_BASELINE_RESERVATION_CANCELED_COUNT: {{ .Values.scenarios.capacityBaseline.reservationCanceledCount | quote }}
   LOADTEST_CAPACITY_BASELINE_PAYMENT_POOL_COUNT: {{ .Values.scenarios.capacityBaseline.paymentPoolCount | quote }}
+  LOADTEST_CAPACITY_BASELINE_PAYMENT_HISTORY_COUNT: {{ .Values.scenarios.capacityBaseline.paymentHistoryCount | quote }}
+  LOADTEST_CAPACITY_BASELINE_PAYMENT_APPROVED_COUNT: {{ .Values.scenarios.capacityBaseline.paymentApprovedCount | quote }}
+  LOADTEST_CAPACITY_BASELINE_TICKET_ISSUE_POOL_COUNT: {{ .Values.scenarios.capacityBaseline.ticketIssuePoolCount | quote }}
+  LOADTEST_CAPACITY_BASELINE_TICKET_HISTORY_COUNT: {{ .Values.scenarios.capacityBaseline.ticketHistoryCount | quote }}
   LOADTEST_CAPACITY_BASELINE_TICKETS_PER_CUSTOMER: {{ .Values.scenarios.capacityBaseline.ticketsPerCustomer | quote }}
+  LOADTEST_CAPACITY_BASELINE_NOTIFICATION_COUNT: {{ .Values.scenarios.capacityBaseline.notificationCount | quote }}
   LOADTEST_CAPACITY_BASELINE_NOTIFICATIONS_PER_CUSTOMER: {{ .Values.scenarios.capacityBaseline.notificationsPerCustomer | quote }}
   LOADTEST_CAPACITY_BASELINE_TARGET_UTILIZATION: {{ .Values.scenarios.capacityBaseline.targetUtilization | quote }}
   LOADTEST_CAPACITY_BASELINE_SEED_METHOD: {{ .Values.scenarios.capacityBaseline.seedMethod | quote }}
   LOADTEST_CAPACITY_BASELINE_FIXED_CONDITIONS: {{ toJson .Values.scenarios.capacityBaseline.fixedConditions | quote }}
   LOADTEST_CAPACITY_BASELINE_SCHEMA_REVISIONS: {{ toJson .Values.scenarios.capacityBaseline.schemaRevisions | quote }}
   LOADTEST_CAPACITY_BASELINE_SEED_ROW_COUNTS: {{ toJson .Values.scenarios.capacityBaseline.seedRowCounts | quote }}
+  LOADTEST_CAPACITY_BASELINE_ENDPOINT_SLO_P95_MS: {{ toJson .Values.scenarios.capacityBaseline.endpointSloP95Ms | quote }}
   LOADTEST_CAPACITY_BASELINE_RESOURCE_OBSERVATION_ENABLED: {{ .Values.scenarios.capacityBaseline.resourceObservation.enabled | quote }}
   LOADTEST_CAPACITY_BASELINE_RESOURCE_OBSERVATION_SOURCE: {{ .Values.scenarios.capacityBaseline.resourceObservation.source | quote }}
   LOADTEST_CAPACITY_BASELINE_PROMETHEUS_URL: {{ .Values.scenarios.capacityBaseline.resourceObservation.prometheusUrl | quote }}
