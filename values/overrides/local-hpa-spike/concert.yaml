@@ -6,3 +6,10 @@ container:
     limits:
       cpu: null
       memory: null
+
+database:
+  sqlalchemy:
+    poolSize: 35
+    maxOverflow: 10
+    poolTimeoutSeconds: 15
+    poolRecycleSeconds: 1800

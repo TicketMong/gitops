@@ -31,9 +31,9 @@ container:
 
 database:
   sqlalchemy:
-    poolSize: 20
+    poolSize: 70
     maxOverflow: 20
-    poolTimeoutSeconds: 10
+    poolTimeoutSeconds: 15
     poolRecycleSeconds: 1800
 
 pdb:
