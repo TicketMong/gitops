@@ -361,10 +361,6 @@ function valueFrom(body, fields, step) {
   return null;
 }
 
-function capacityId(prefix, number) {
-  return `${config.dataset.revision}-${prefix}-${String(number).padStart(6, '0')}`;
-}
-
 function datasetUuid(...parts) {
   const name = [config.dataset.revision, ...parts.map((part) => String(part))].join(':');
   const chars = crypto.sha256(name, 'hex').slice(0, 32).split('');
@@ -582,7 +578,7 @@ export function measureReservation(setupData) {
         concertId: setupData.concertId,
         showtimeId: setupData.performanceId,
         performanceId: setupData.performanceId,
-        seatId: capacityId('seat', iteration),
+        seatId: datasetUuid('seat', iteration),
       },
       authHeaders(setupData),
     );
@@ -601,16 +597,16 @@ export function measurePayment(setupData) {
       'POST',
       '/payments',
       {
-        reservationId: capacityId('pending-reservation', iteration),
+        reservationId: datasetUuid('pending-reservation', iteration),
         concertId: setupData.concertId,
-        seatId: capacityId('payment-seat', iteration),
+        seatId: datasetUuid('payment-seat', iteration),
         amount: runConfig.paymentAmount,
         method: 'CARD',
         simulation: 'approve',
       },
       {
         ...authHeaders(setupData),
-        'Idempotency-Key': capacityId('payment-idempotency', iteration),
+        'Idempotency-Key': datasetUuid('payment-idempotency', iteration),
       },
     );
   } finally {
@@ -630,10 +626,10 @@ export function measureTicket(setupData) {
       'POST',
       '/tickets/issue',
       {
-        reservationId: capacityId('paid-reservation', poolIndex),
+        reservationId: datasetUuid('paid-reservation', poolIndex),
         userId: token.userId,
         concertId: setupData.concertId,
-        seatId: capacityId('ticket-issue-seat', poolIndex),
+        seatId: datasetUuid('ticket-issue-seat', poolIndex),
       },
       authHeaders(setupData),
     );

@@ -452,27 +452,24 @@ def seed_payment(counts: dict):
 
 def seed_ticket(counts: dict):
     ticket_count = env_int("LOADTEST_CAPACITY_BASELINE_TICKET_HISTORY_COUNT", 170000)
+    ticket_issue_pool = env_int("LOADTEST_CAPACITY_BASELINE_TICKET_ISSUE_POOL_COUNT", ticket_count)
     now = datetime.now(timezone.utc)
     with pg("LOADTEST_CAPACITY_BASELINE_TICKET_DATABASE_URL", "postgresql://user:password@ticket-db:5432/ticket_db") as connection:
         cursor = connection.cursor()
         require_table(cursor, "tickets", {"reservation_id", "user_id", "concert_id", "seat_id", "status", "qr_url", "pdf_url", "issued_at"})
         require_unique_columns(cursor, "tickets", ("reservation_id",))
+        ticket_reservation_ids = [uuid_id("ticket-reservation", index) for index in range(1, ticket_count + 1)]
+        issued_reservation_ids = [uuid_id("paid-reservation", index) for index in range(1, ticket_issue_pool + 1)]
+        delete_uuid_values(cursor, "tickets", "reservation_id", ticket_reservation_ids)
+        delete_uuid_values(cursor, "tickets", "reservation_id", issued_reservation_ids)
         cursor.execute(
             """
             delete from tickets
-            where reservation_id like %s
-               or concert_id like %s
-               or seat_id like %s
-               or reservation_id like %s
-               or seat_id like %s
-               or qr_url like %s
+            where qr_url like %s
+               or pdf_url like %s
             """,
             (
-                f"{REVISION}-ticket-reservation-%",
-                f"{REVISION}-concert-%",
-                f"{REVISION}-ticket-seat-%",
-                f"{REVISION}-paid-reservation-%",
-                f"{REVISION}-ticket-issue-seat-%",
+                f"https://tickets.local/{REVISION}/%",
                 f"https://tickets.local/{REVISION}/%",
             ),
         )
@@ -496,11 +493,11 @@ def seed_notification(counts: dict):
     notification_count = env_int("LOADTEST_CAPACITY_BASELINE_NOTIFICATION_COUNT", 354000)
     client = MongoClient(os.getenv("LOADTEST_CAPACITY_BASELINE_MONGODB_URL", os.getenv("MONGODB_URL", "mongodb://notification-db:27017")))
     db = client[os.getenv("LOADTEST_CAPACITY_BASELINE_MONGODB_DB_NAME", os.getenv("MONGODB_DB_NAME", "notification_db"))]
-    db.notifications.delete_many({"source_id": {"$regex": f"^{REVISION}-notification-source-"}})
+    db.notifications.delete_many({"metadata.dataset_revision": REVISION})
     documents = []
     now = datetime.now(timezone.utc)
     for index in range(1, notification_count + 1):
-        source_id = f"{REVISION}-notification-source-{index:06d}"
+        source_id = uuid_id("notification-source", index)
         documents.append({
             "_id": source_id,
             "user_id": str(CUSTOMER_ID_BASE + ((index - 1) % CUSTOMER_COUNT) + 1),
@@ -522,7 +519,7 @@ def seed_notification(counts: dict):
             ]
             if unexpected_errors:
                 raise
-    count = db.notifications.count_documents({"source_id": {"$regex": f"^{REVISION}-notification-source-"}})
+    count = db.notifications.count_documents({"metadata.dataset_revision": REVISION})
     counts["notification.notifications"] = expect_count("notification.notifications", count, len(documents))
     db.notifications.create_index([("user_id", 1), ("_id", -1)])
     client.close()
