@@ -5,6 +5,22 @@ postgresql:
   pgData: /var/lib/postgresql/data/pgdata
   user: user
   password: password
+  exporter:
+    enabled: true
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    port: 9187
+    serviceMonitor:
+      enabled: true
+      labels:
+        release: kube-prometheus-stack
+      interval: 30s
+      path: /metrics
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
   config:
     sharedBuffers: 128MB
     effectiveCacheSize: 512MB

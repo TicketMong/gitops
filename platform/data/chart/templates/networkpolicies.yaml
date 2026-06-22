@@ -32,6 +32,15 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
+{{- if .Values.postgresql.exporter.enabled }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: {{ .Values.postgresql.exporter.port }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -67,6 +76,15 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
+{{- if .Values.postgresql.exporter.enabled }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: {{ .Values.postgresql.exporter.port }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -87,6 +105,9 @@ spec:
         - podSelector:
             matchLabels:
               app: reservation-service
+        - podSelector:
+            matchLabels:
+              app: reservation-service-background
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: ticketing-payment
@@ -102,6 +123,15 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
+{{- if .Values.postgresql.exporter.enabled }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: {{ .Values.postgresql.exporter.port }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -124,6 +154,9 @@ spec:
               app: payment-service
         - podSelector:
             matchLabels:
+              app: payment-service-background
+        - podSelector:
+            matchLabels:
               app.kubernetes.io/name: pgadmin
         - namespaceSelector:
             matchLabels:
@@ -134,6 +167,15 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
+{{- if .Values.postgresql.exporter.enabled }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: {{ .Values.postgresql.exporter.port }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -154,6 +196,9 @@ spec:
         - podSelector:
             matchLabels:
               app: ticket-service
+        - podSelector:
+            matchLabels:
+              app: ticket-service-background
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: ticketing-payment
@@ -169,6 +214,15 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
+{{- if .Values.postgresql.exporter.enabled }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: {{ .Values.postgresql.exporter.port }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -189,6 +243,9 @@ spec:
         - podSelector:
             matchLabels:
               app: notification-service
+        - podSelector:
+            matchLabels:
+              app: notification-service-background
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: loadtest

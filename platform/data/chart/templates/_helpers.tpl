@@ -2,6 +2,8 @@
 {{- $root := .root -}}
 {{- $key := .key -}}
 {{- $postgres := $root.Values.postgresql -}}
+{{- $exporter := default dict $postgres.exporter -}}
+{{- $exporterServiceMonitor := default dict $exporter.serviceMonitor -}}
 {{- $db := index $postgres.databases $key -}}
 apiVersion: v1
 kind: Service
@@ -19,6 +21,53 @@ spec:
     - name: postgres
       port: 5432
       targetPort: postgres
+{{- if $exporter.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ printf "%s-metrics" $db.name | quote }}
+  namespace: {{ $db.namespace | quote }}
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: {{ $db.name | quote }}
+    app.kubernetes.io/component: postgresql-exporter
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ $db.name | quote }}
+  ports:
+    - name: pg-metrics
+      port: {{ $exporter.port }}
+      targetPort: pg-metrics
+{{- if $exporterServiceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ printf "%s-metrics" $db.name | quote }}
+  namespace: {{ $db.namespace | quote }}
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: {{ $db.name | quote }}
+    app.kubernetes.io/component: postgresql-exporter
+{{- with $exporterServiceMonitor.labels }}
+{{ toYaml . | nindent 4 }}
+{{- end }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $db.name | quote }}
+      app.kubernetes.io/component: postgresql-exporter
+  namespaceSelector:
+    matchNames:
+      - {{ $db.namespace | quote }}
+  endpoints:
+    - port: pg-metrics
+      path: {{ default "/metrics" $exporterServiceMonitor.path | quote }}
+      interval: {{ default "30s" $exporterServiceMonitor.interval | quote }}
+{{- end }}
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -81,6 +130,18 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+{{- if $exporter.enabled }}
+        - name: postgres-exporter
+          image: {{ $exporter.image | quote }}
+          ports:
+            - name: pg-metrics
+              containerPort: {{ $exporter.port }}
+          env:
+            - name: DATA_SOURCE_NAME
+              value: {{ printf "postgresql://%s:%s@localhost:5432/%s?sslmode=disable" $postgres.user $postgres.password $db.database | quote }}
+          resources:
+{{ toYaml $exporter.resources | nindent 12 }}
+{{- end }}
   volumeClaimTemplates:
     - metadata:
         name: data

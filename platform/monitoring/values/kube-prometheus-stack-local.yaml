@@ -28,6 +28,19 @@ grafana:
     server:
       root_url: http://localhost/grafana/
       serve_from_sub_path: true
+  imageRenderer:
+    enabled: true
+    image:
+      tag: v5.8.11
+      pullPolicy: IfNotPresent
+    grafanaSubPath: grafana
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 2Gi
   sidecar:
     dashboards:
       enabled: true

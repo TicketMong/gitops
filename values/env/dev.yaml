@@ -25,12 +25,6 @@ container:
       cpu: 500m
       memory: 512Mi
 
-database:
-  sqlalchemy:
-    poolSize: 15
-    maxOverflow: 0
-    poolTimeoutSeconds: 10
-
 observability:
   tracing:
     enabled: true

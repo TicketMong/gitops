@@ -797,6 +797,260 @@
       ]
     },
     {
+      "id": 14,
+      "title": "PostgreSQL Connection Usage %",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 50,
+        "w": 12,
+        "h": 10
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "spanNulls": false,
+            "showPoints": "never",
+            "pointSize": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum by (namespace) (pg_stat_activity_count{namespace=~\"ticketing-(auth|concert|payment|reservation|ticket)\",datname!~\"template.*|postgres\"}) / clamp_min(sum by (namespace) (pg_settings_max_connections{namespace=~\"ticketing-(auth|concert|payment|reservation|ticket)\"}), 1)",
+          "legendFormat": "{{namespace}}",
+          "range": true,
+          "refId": "A",
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "PostgreSQL Current / Max Connections",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 50,
+        "w": 12,
+        "h": 10
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, datname) (pg_stat_activity_count{namespace=~\"ticketing-(auth|concert|payment|reservation|ticket)\",datname!~\"template.*|postgres\"})",
+          "legendFormat": "{{namespace}}/{{datname}} current",
+          "range": true,
+          "refId": "A",
+          "instant": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace) (pg_settings_max_connections{namespace=~\"ticketing-(auth|concert|payment|reservation|ticket)\"})",
+          "legendFormat": "{{namespace}} max",
+          "range": true,
+          "refId": "B",
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "PostgreSQL Connections by State",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 60,
+        "w": 24,
+        "h": 10
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "spanNulls": false,
+            "showPoints": "never",
+            "pointSize": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, datname, state) (pg_stat_activity_count{namespace=~\"ticketing-(auth|concert|payment|reservation|ticket)\",datname!~\"template.*|postgres\",state=~\"active|idle|idle in transaction\"})",
+          "legendFormat": "{{namespace}}/{{datname}} {{state}}",
+          "range": true,
+          "refId": "A",
+          "instant": false
+        }
+      ]
+    },
+    {
       "id": 10,
       "title": "MongoDB CPU Usage",
       "type": "timeseries",
@@ -806,7 +1060,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 50,
+        "y": 70,
         "w": 12,
         "h": 10
       },
@@ -892,7 +1146,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 50,
+        "y": 70,
         "w": 12,
         "h": 10
       },
@@ -978,7 +1232,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 60,
+        "y": 80,
         "w": 12,
         "h": 10
       },
@@ -1064,7 +1318,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 60,
+        "y": 80,
         "w": 12,
         "h": 10
       },
@@ -1146,7 +1400,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 70,
+        "y": 90,
         "w": 12,
         "h": 10
       },
@@ -1228,7 +1482,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 70,
+        "y": 90,
         "w": 12,
         "h": 10
       },
@@ -1310,7 +1564,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 80,
+        "y": 100,
         "w": 12,
         "h": 10
       },
@@ -1404,7 +1658,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 80,
+        "y": 100,
         "w": 12,
         "h": 10
       },
@@ -1498,7 +1752,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 90,
+        "y": 110,
         "w": 12,
         "h": 10
       },
@@ -1580,7 +1834,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 90,
+        "y": 110,
         "w": 12,
         "h": 10
       },
@@ -1662,7 +1916,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 100,
+        "y": 120,
         "w": 12,
         "h": 10
       },
@@ -1744,7 +1998,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 100,
+        "y": 120,
         "w": 12,
         "h": 10
       },
@@ -1826,7 +2080,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 110,
+        "y": 130,
         "w": 12,
         "h": 10
       },
@@ -1908,7 +2162,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 110,
+        "y": 130,
         "w": 12,
         "h": 10
       },
@@ -2002,7 +2256,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 120,
+        "y": 140,
         "w": 12,
         "h": 10
       },
@@ -2084,7 +2338,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 120,
+        "y": 140,
         "w": 12,
         "h": 10
       },

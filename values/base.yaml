@@ -52,6 +52,13 @@ container:
     initialDelaySeconds: 15
     periodSeconds: 20
 
+database:
+  sqlalchemy:
+    poolSize: 15
+    maxOverflow: 0
+    poolTimeoutSeconds: 15
+    poolRecycleSeconds: 1800
+
 podSecurityContext: {}
 securityContext:
   allowPrivilegeEscalation: false
