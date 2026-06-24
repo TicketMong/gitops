@@ -22,7 +22,6 @@ configMapGenerator:
     files:
       - dashboards/ops/00-service-metrics-overview.json
       - dashboards/ops/01-service-runtime-health.json
-      - dashboards/ops/02-service-runtime-detail.json
       - dashboards/ops/03-gateway-mesh-metrics.json
       - dashboards/ops/04-pod-logs-and-waiting-reasons.json
       - dashboards/ops/04-business-kpi-overview.json

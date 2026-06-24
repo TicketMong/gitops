@@ -59,7 +59,7 @@ spec:
           expr: |
             100 *
             sum by (namespace, pod, container) (
-              rate(container_cpu_cfs_throttled_seconds_total{namespace=~"ticketing-.*|monitoring|observability",container!="",container!="POD",pod!="",image!=""}[5m])
+              rate(container_cpu_cfs_throttled_periods_total{namespace=~"ticketing-.*|monitoring|observability",container!="",container!="POD",pod!="",image!=""}[5m])
             )
             /
             clamp_min(

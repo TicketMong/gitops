@@ -115,7 +115,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(100 * sum by (namespace, pod, container) (rate(container_cpu_cfs_throttled_seconds_total{namespace=~\"$service_namespace\",pod=~\"$service_pod\",container!=\"\",container!=\"POD\",pod!=\"\",image!=\"\"}[$__rate_interval])) / clamp_min(sum by (namespace, pod, container) (rate(container_cpu_cfs_periods_total{namespace=~\"$service_namespace\",pod=~\"$service_pod\",container!=\"\",container!=\"POD\",pod!=\"\",image!=\"\"}[$__rate_interval])), 0.001))",
+          "expr": "avg(100 * sum by (namespace, pod, container) (rate(container_cpu_cfs_throttled_periods_total{namespace=~\"$service_namespace\",pod=~\"$service_pod\",container!=\"\",container!=\"POD\",pod!=\"\",image!=\"\"}[$__rate_interval])) / clamp_min(sum by (namespace, pod, container) (rate(container_cpu_cfs_periods_total{namespace=~\"$service_namespace\",pod=~\"$service_pod\",container!=\"\",container!=\"POD\",pod!=\"\",image!=\"\"}[$__rate_interval])), 0.001))",
           "legendFormat": "throttle",
           "range": true
         }
@@ -497,7 +497,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * sum by (namespace, pod, container) (rate(container_cpu_cfs_throttled_seconds_total{namespace=~\"$service_namespace\",pod=~\"$service_pod\",container!=\"\",container!=\"POD\",pod!=\"\",image!=\"\"}[$__rate_interval])) / clamp_min(sum by (namespace, pod, container) (rate(container_cpu_cfs_periods_total{namespace=~\"$service_namespace\",pod=~\"$service_pod\",container!=\"\",container!=\"POD\",pod!=\"\",image!=\"\"}[$__rate_interval])), 0.001)",
+          "expr": "100 * sum by (namespace, pod, container) (rate(container_cpu_cfs_throttled_periods_total{namespace=~\"$service_namespace\",pod=~\"$service_pod\",container!=\"\",container!=\"POD\",pod!=\"\",image!=\"\"}[$__rate_interval])) / clamp_min(sum by (namespace, pod, container) (rate(container_cpu_cfs_periods_total{namespace=~\"$service_namespace\",pod=~\"$service_pod\",container!=\"\",container!=\"POD\",pod!=\"\",image!=\"\"}[$__rate_interval])), 0.001)",
           "legendFormat": "{{namespace}}/{{pod}}/{{container}}",
           "range": true
         }
