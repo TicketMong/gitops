@@ -347,8 +347,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(10, 1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval])))",
-          "legendFormat": "{{instance}}",
+          "expr": "topk(10, ((1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval]))) * on (instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\") * on (node) group_left(label_role) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\"))) or (((1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval]))) * on (instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\")) unless on (node) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\"))))",
+          "legendFormat": "{{node}} {{label_role}}",
           "range": false,
           "refId": "A",
           "instant": true
@@ -421,8 +421,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(10, 1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))",
-          "legendFormat": "{{instance}}",
+          "expr": "topk(10, ((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * on (instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\") * on (node) group_left(label_role) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\"))) or (((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * on (instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\")) unless on (node) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\"))))",
+          "legendFormat": "{{node}} {{label_role}}",
           "range": false,
           "refId": "A",
           "instant": true
@@ -495,8 +495,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(10, 1 - (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*|/var/lib/kubelet/pods.*\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*|/var/lib/kubelet/pods.*\"}))",
-          "legendFormat": "{{instance}} {{mountpoint}}",
+          "expr": "topk(10, ((1 - (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*|/var/lib/kubelet/pods.*\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*|/var/lib/kubelet/pods.*\"})) * on (instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\") * on (node) group_left(label_role) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\"))) or (((1 - (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*|/var/lib/kubelet/pods.*\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*|/var/lib/kubelet/pods.*\"})) * on (instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\")) unless on (node) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\"))))",
+          "legendFormat": "{{node}} {{label_role}} {{mountpoint}}",
           "range": false,
           "refId": "A",
           "instant": true
@@ -542,7 +542,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "((100 * sum by (node) (kube_pod_container_resource_requests{node=~\"$node\",resource=\"cpu\",unit=\"core\"}) / clamp_min(sum by (node) (kube_node_status_allocatable{node=~\"$node\",resource=\"cpu\",unit=\"core\"}), 0.001)) * on (node) group_left(label_role) kube_node_labels{node=~\"$node\",label_role=~\".+\"}) or ((100 * sum by (node) (kube_pod_container_resource_requests{node=~\"$node\",resource=\"cpu\",unit=\"core\"}) / clamp_min(sum by (node) (kube_node_status_allocatable{node=~\"$node\",resource=\"cpu\",unit=\"core\"}), 0.001)) unless on (node) kube_node_labels{node=~\"$node\",label_role=~\".+\"})",
+          "expr": "((100 * sum by (node) (kube_pod_container_resource_requests{node=~\"$node\",resource=\"cpu\",unit=\"core\"}) / clamp_min(sum by (node) (kube_node_status_allocatable{node=~\"$node\",resource=\"cpu\",unit=\"core\"}), 0.001)) * on (node) group_left(label_role) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\"))) or ((100 * sum by (node) (kube_pod_container_resource_requests{node=~\"$node\",resource=\"cpu\",unit=\"core\"}) / clamp_min(sum by (node) (kube_node_status_allocatable{node=~\"$node\",resource=\"cpu\",unit=\"core\"}), 0.001)) unless on (node) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\")))",
           "legendFormat": "{{node}} {{label_role}}",
           "range": false,
           "refId": "A",
@@ -597,7 +597,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "((sum by (node) (kube_node_status_allocatable{node=~\"$node\",resource=\"cpu\",unit=\"core\"}) - sum by (node) (kube_pod_container_resource_requests{node=~\"$node\",resource=\"cpu\",unit=\"core\"})) * on (node) group_left(label_role) kube_node_labels{node=~\"$node\",label_role=~\".+\"}) or ((sum by (node) (kube_node_status_allocatable{node=~\"$node\",resource=\"cpu\",unit=\"core\"}) - sum by (node) (kube_pod_container_resource_requests{node=~\"$node\",resource=\"cpu\",unit=\"core\"})) unless on (node) kube_node_labels{node=~\"$node\",label_role=~\".+\"})",
+          "expr": "((sum by (node) (kube_node_status_allocatable{node=~\"$node\",resource=\"cpu\",unit=\"core\"}) - sum by (node) (kube_pod_container_resource_requests{node=~\"$node\",resource=\"cpu\",unit=\"core\"})) * on (node) group_left(label_role) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\"))) or ((sum by (node) (kube_node_status_allocatable{node=~\"$node\",resource=\"cpu\",unit=\"core\"}) - sum by (node) (kube_pod_container_resource_requests{node=~\"$node\",resource=\"cpu\",unit=\"core\"})) unless on (node) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\")))",
           "legendFormat": "{{node}} {{label_role}}",
           "range": false,
           "refId": "A",
@@ -677,8 +677,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (instance) (rate(node_network_receive_bytes_total{device!~\"lo|veth.*|cali.*|flannel.*|docker.*\"}[$__rate_interval]))",
-          "legendFormat": "{{instance}} rx",
+          "expr": "((sum by (instance) (rate(node_network_receive_bytes_total{device!~\"lo|veth.*|cali.*|flannel.*|docker.*\"}[$__rate_interval]))) * on (instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\") * on (node) group_left(label_role) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\"))) or (((sum by (instance) (rate(node_network_receive_bytes_total{device!~\"lo|veth.*|cali.*|flannel.*|docker.*\"}[$__rate_interval]))) * on (instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\")) unless on (node) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\")))",
+          "legendFormat": "{{node}} {{label_role}} rx",
           "range": true,
           "refId": "A"
         }
@@ -744,8 +744,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (instance) (rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|cali.*|flannel.*|docker.*\"}[$__rate_interval]))",
-          "legendFormat": "{{instance}} tx",
+          "expr": "((sum by (instance) (rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|cali.*|flannel.*|docker.*\"}[$__rate_interval]))) * on (instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\") * on (node) group_left(label_role) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\"))) or (((sum by (instance) (rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|cali.*|flannel.*|docker.*\"}[$__rate_interval]))) * on (instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\")) unless on (node) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\")))",
+          "legendFormat": "{{node}} {{label_role}} tx",
           "range": true,
           "refId": "A"
         }
@@ -786,7 +786,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "(topk(40, kube_pod_container_resource_requests{node=~\"$node\",resource=\"cpu\",unit=\"core\",namespace=~\"ticketing-.*|loadtest|kong|monitoring|observability\"}) * on (node) group_left(label_role) kube_node_labels{node=~\"$node\",label_role=~\".+\"}) or (topk(40, kube_pod_container_resource_requests{node=~\"$node\",resource=\"cpu\",unit=\"core\",namespace=~\"ticketing-.*|loadtest|kong|monitoring|observability\"}) unless on (node) kube_node_labels{node=~\"$node\",label_role=~\".+\"})",
+          "expr": "(topk(40, kube_pod_container_resource_requests{node=~\"$node\",resource=\"cpu\",unit=\"core\",namespace=~\"ticketing-.*|loadtest|kong|monitoring|observability\"}) * on (node) group_left(label_role) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\"))) or (topk(40, kube_pod_container_resource_requests{node=~\"$node\",resource=\"cpu\",unit=\"core\",namespace=~\"ticketing-.*|loadtest|kong|monitoring|observability\"}) unless on (node) (kube_node_labels{node=~\"$node\",label_role=~\".+\"} or label_replace(kube_node_role{node=~\"$node\"}, \"label_role\", \"$1\", \"role\", \"(.+)\")))",
           "legendFormat": "{{node}} {{label_role}}",
           "range": false,
           "refId": "A",
