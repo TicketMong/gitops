@@ -10,12 +10,13 @@ vars:
   LOCAL_DOCKER_DESKTOP_ENV: dev
   LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX: local-docker-desktop
   SERVICE_REPO: '{{default "../service" .SERVICE_REPO}}'
+  SERVICE_PYTHON_BIN: '{{default "python3" .SERVICE_PYTHON_BIN}}'
   DEV_REGISTRY: '{{default "localhost:5001" .DEV_REGISTRY}}'
   DEV_REGISTRY_CONTAINER: '{{default "medikong-registry" .DEV_REGISTRY_CONTAINER}}'
   DEV_IMAGE_NAMESPACE: '{{default "" .DEV_IMAGE_NAMESPACE}}'
   DEV_IMAGE_TAG: '{{default "dev" .DEV_IMAGE_TAG}}'
   DEV_ROLLOUT_ID: '{{default "" .DEV_ROLLOUT_ID}}'
-  DEV_SERVICES: '{{default "auth concert notification payment reservation ticket" .DEV_SERVICES}}'
+  DEV_SERVICES: '{{default "auth user coupon backoffice" .DEV_SERVICES}}'
   LOADTEST_CAPACITY_BASELINE_CPU_REQUEST: '{{default "" .LOADTEST_CAPACITY_BASELINE_CPU_REQUEST}}'
   LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS: '{{default "" .LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS}}'
   KONG_CHART: '{{default "kong/kong" .KONG_CHART}}'
@@ -361,6 +362,10 @@ tasks:
           namespace="$(yaml_section_field "${service_file}" app namespace)"
           release="${service}-{{.LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX}}"
           service_helm_args="${extra_helm_args}"
+          env_service_values=""
+          if [ -f "values/services/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${service}.yaml" ]; then
+            env_service_values="-f values/services/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${service}.yaml"
+          fi
           override_file="values/overrides/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${service}.yaml"
           override_args=""
           if [ -f "${override_file}" ]; then
@@ -374,8 +379,9 @@ tasks:
               --namespace "${namespace}" \
               --create-namespace \
               -f {{.VALUES_BASE}} \
-              -f "${service_file}" \
               -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
+              -f "${service_file}" \
+              ${env_service_values} \
               ${override_args} \
               --set-string image.registry="${image_registry}" \
               --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
@@ -560,39 +566,60 @@ tasks:
           printf '%s\n' 'SERVICE selection did not resolve any image repositories.' >&2
           exit 2
         fi
-        dashboard_service="${image_services%% *}"
-        app_image_services="${image_services#${dashboard_service}}"
-        app_image_services="$(printf '%s\n' "${app_image_services}" | sed 's/^[[:space:]]*//')"
-        if ! task --dir "${service_repo}" --dry app-images-push \
-          APP_IMAGE_SERVICES="${app_image_services}" \
-          DASHBOARD_SERVICE="${dashboard_service}" \
-          IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
-          IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
-          IMAGE_TAG="{{.DEV_IMAGE_TAG}}" \
-          DOCKER_BUILD_PLATFORMS="${dev_build_platform}" >/dev/null 2>&1; then
-          printf '%s\n' 'SERVICE_REPO Taskfile is missing required target: app-images-push' >&2
-          exit 2
+        if [ -z "${service}" ] || [ "${service}" = "all" ]; then
+          if ! PYTHON_BIN="{{.SERVICE_PYTHON_BIN}}" DOCKER_BUILD_PLATFORMS="${dev_build_platform}" \
+            task --dir "${service_repo}" --dry app-images-push \
+            IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
+            IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
+            IMAGE_TAG="{{.DEV_IMAGE_TAG}}" >/dev/null 2>&1; then
+            printf '%s\n' 'SERVICE_REPO Taskfile is missing required target: app-images-push' >&2
+            exit 2
+          fi
+          PYTHON_BIN="{{.SERVICE_PYTHON_BIN}}" DOCKER_BUILD_PLATFORMS="${dev_build_platform}" \
+            task --dir "${service_repo}" app-images-push \
+            IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
+            IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
+            IMAGE_TAG="{{.DEV_IMAGE_TAG}}"
+        else
+          if ! PYTHON_BIN="{{.SERVICE_PYTHON_BIN}}" DOCKER_BUILD_PLATFORMS="${dev_build_platform}" \
+            task --dir "${service_repo}" --dry app-image-push \
+            SERVICE="${image_services}" \
+            IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
+            IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
+            IMAGE_TAG="{{.DEV_IMAGE_TAG}}" >/dev/null 2>&1; then
+            printf '%s\n' 'SERVICE_REPO Taskfile is missing required target: app-image-push' >&2
+            exit 2
+          fi
+          PYTHON_BIN="{{.SERVICE_PYTHON_BIN}}" DOCKER_BUILD_PLATFORMS="${dev_build_platform}" \
+            task --dir "${service_repo}" app-image-push \
+            SERVICE="${image_services}" \
+            IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
+            IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
+            IMAGE_TAG="{{.DEV_IMAGE_TAG}}"
         fi
-        task --dir "${service_repo}" app-images-push \
-          APP_IMAGE_SERVICES="${app_image_services}" \
-          DASHBOARD_SERVICE="${dashboard_service}" \
-          IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
-          IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
-          IMAGE_TAG="{{.DEV_IMAGE_TAG}}" \
-          DOCKER_BUILD_PLATFORMS="${dev_build_platform}"
         task --taskfile platform/monitoring/Taskfile.yml up
         pids=""
         for selected_service in ${selected_services}; do
           service_file="values/services/${selected_service}.yaml"
           namespace="$(yaml_section_field "${service_file}" app namespace)"
           release="${selected_service}-{{.LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX}}"
+          env_service_values=""
+          if [ -f "values/services/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${selected_service}.yaml" ]; then
+            env_service_values="-f values/services/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${selected_service}.yaml"
+          fi
+          override_values=""
+          if [ -f "values/overrides/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${selected_service}.yaml" ]; then
+            override_values="-f values/overrides/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${selected_service}.yaml"
+          fi
           (
             {{.HELM}} upgrade --install "${release}" {{.SERVICE_CHART}} \
               --namespace "${namespace}" \
               --create-namespace \
               -f {{.VALUES_BASE}} \
-              -f "${service_file}" \
               -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
+              -f "${service_file}" \
+              ${env_service_values} \
+              ${override_values} \
               --set-string image.registry="${image_registry}" \
               --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
               --set-string image.pullPolicy=Always \
@@ -690,10 +717,20 @@ tasks:
           service="${service_file##*/}"
           service="${service##*\\}"
           service="${service%.yaml}"
+          env_service_values=""
+          if [ -f "values/services/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${service}.yaml" ]; then
+            env_service_values="-f values/services/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${service}.yaml"
+          fi
+          override_values=""
+          if [ -f "values/overrides/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${service}.yaml" ]; then
+            override_values="-f values/overrides/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${service}.yaml"
+          fi
           {{.HELM}} template "${service}-{{.LOCAL_DOCKER_DESKTOP_ENV}}-dev" {{.SERVICE_CHART}} \
             -f {{.VALUES_BASE}} \
-            -f "${service_file}" \
             -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
+            -f "${service_file}" \
+            ${env_service_values} \
+            ${override_values} \
             --set-string image.registry="${image_registry}" \
             --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
             --set-string image.pullPolicy=Always \
@@ -884,7 +921,7 @@ tasks:
 
   dev:data:
     internal: true
-    desc: Docker Desktop dev에 필요한 DB와 Kafka를 배포하고 준비될 때까지 기다립니다.
+    desc: Docker Desktop dev에 필요한 DB, Kafka, Redis 후보를 배포하고 준비될 때까지 기다립니다.
     cmds:
       - |
         set -eu
@@ -894,20 +931,26 @@ tasks:
           --create-namespace \
           -f platform/data/local/postgresql.yaml \
           -f platform/data/local/postgres-auth.yaml \
+          -f platform/data/local/postgres-user.yaml \
+          -f platform/data/local/postgres-coupon.yaml \
+          -f platform/data/local/postgres-backoffice.yaml \
           -f platform/data/local/postgres-concert.yaml \
           -f platform/data/local/postgres-reservation.yaml \
           -f platform/data/local/postgres-payment.yaml \
           -f platform/data/local/postgres-ticket.yaml \
-          -f platform/data/local/mongodb.yaml
+          -f platform/data/local/mongodb.yaml \
+          -f platform/data/local/valkey.yaml
         pids=""
         for item in \
           ticketing-auth/auth-db \
+          ticketing-user/user-db \
           ticketing-concert/concert-db \
           ticketing-reservation/reservation-db \
           ticketing-payment/payment-db \
           ticketing-ticket/ticket-db \
           ticketing-notification/notification-db \
-          ticketing-messaging/kafka
+          ticketing-messaging/kafka \
+          ticketing-coupon/coupon-redis
         do
           namespace="${item%%/*}"
           statefulset="${item##*/}"
@@ -1019,8 +1062,9 @@ tasks:
         for service in payment ticket notification; do
           {{.HELM}} template "${service}-sidecar" {{.SERVICE_CHART}} \
             -f {{.VALUES_BASE}} \
+            -f values/env/aws-dev.yaml \
             -f "values/services/${service}.yaml" \
-            -f values/env/aws-dev.yaml >/dev/null
+            -f "values/services/aws-dev/${service}.yaml" >/dev/null
         done
 
   sidecar:check:
@@ -1067,8 +1111,9 @@ tasks:
         set -eu
         {{.HELM}} template reservation-canary {{.SERVICE_CHART}} \
           -f {{.VALUES_BASE}} \
-          -f values/services/reservation.yaml \
           -f values/env/aws-dev.yaml \
+          -f values/services/reservation.yaml \
+          -f values/services/aws-dev/reservation.yaml \
           -f values/scenarios/istio/reservation-canary-v2.yaml >/dev/null
         {{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}}/traffic/reservation >/dev/null
         for scenario in canary-20 canary-50 canary-100 rollback; do
@@ -1352,15 +1397,7 @@ tasks:
           service="${service##*\\}"
           service="${service%.yaml}"
           for env in {{.ENVIRONMENTS}}; do
-            extra_values=""
-            if [ -f "values/overrides/${env}/${service}.yaml" ]; then
-              extra_values="-f values/overrides/${env}/${service}.yaml"
-            fi
-            {{.HELM}} template "${service}-${env}" {{.SERVICE_CHART}} \
-              -f {{.VALUES_BASE}} \
-              -f "${service_file}" \
-              -f "values/env/${env}.yaml" \
-              ${extra_values} >/dev/null
+            task --silent helm:template:one SERVICE="${service}" ENV="${env}"
           done
         done
 
@@ -1408,6 +1445,7 @@ tasks:
         set -eu
         service='{{default "" .SERVICE}}'
         env='{{default "" .ENV}}'
+        output='{{default "/dev/null" .OUTPUT}}'
         if [ -z "${service}" ] || [ -z "${env}" ]; then
           printf '%s\n' 'SERVICE and ENV are required, for example: task helm:template:one SERVICE=concert ENV=aws-dev' >&2
           exit 2
@@ -1426,16 +1464,21 @@ tasks:
         if [ -f "values/services/${env}/${service}.yaml" ]; then
           env_service_values="-f values/services/${env}/${service}.yaml"
         fi
+        environment_override_values=""
+        if [ "${env}" = "private-dev" ]; then
+          environment_override_values="-f values/overrides/private-dev-ha-stable.yaml"
+        fi
         extra_values=""
         if [ -f "values/overrides/${env}/${service}.yaml" ]; then
           extra_values="-f values/overrides/${env}/${service}.yaml"
         fi
         {{.HELM}} template "${service}-${env}" {{.SERVICE_CHART}} \
           -f {{.VALUES_BASE}} \
-          -f "${service_file}" \
           -f "${env_file}" \
+          -f "${service_file}" \
           ${env_service_values} \
-          ${extra_values} >/dev/null
+          ${environment_override_values} \
+          ${extra_values} > "${output}"
 
   scenario:all:
     cmds:
@@ -1501,11 +1544,15 @@ tasks:
         {{.HELM}} template medikong-data platform/data/chart
         -f platform/data/local/postgresql.yaml
         -f platform/data/local/postgres-auth.yaml
+        -f platform/data/local/postgres-user.yaml
+        -f platform/data/local/postgres-coupon.yaml
+        -f platform/data/local/postgres-backoffice.yaml
         -f platform/data/local/postgres-concert.yaml
         -f platform/data/local/postgres-reservation.yaml
         -f platform/data/local/postgres-payment.yaml
         -f platform/data/local/postgres-ticket.yaml
-        -f platform/data/local/mongodb.yaml >/dev/null
+        -f platform/data/local/mongodb.yaml
+        -f platform/data/local/valkey.yaml >/dev/null
       - >-
         {{.HELM}} template medikong-data platform/data/chart
         -f platform/data/aws-dev/postgresql.yaml
@@ -1548,3 +1595,30 @@ tasks:
           has_key kind "${file}" || { printf 'Missing kind: %s\n' "${file}" >&2; exit 2; }
           has_key metadata "${file}" || { printf 'Missing metadata: %s\n' "${file}" >&2; exit 2; }
         done
+      - |
+        set -eu
+        ruby -ryaml -e '
+          Dir.glob("argo/applications/{aws-dev,private-dev}/services/*.yaml").sort.each do |path|
+            parts = path.split("/")
+            environment = parts.fetch(-3)
+            service = File.basename(path, ".yaml")
+            manifest = YAML.safe_load(File.read(path), aliases: true)
+            source = Array(manifest.dig("spec", "sources")).find { |item| item.dig("helm", "valueFiles") }
+            next unless source
+
+            actual = source.dig("helm", "valueFiles").map { |file| file.sub(/^\$values\//, "") }
+            expected = [
+              "values/base.yaml",
+              "values/env/#{environment}.yaml",
+              "values/services/#{service}.yaml",
+            ]
+            service_environment = "values/services/#{environment}/#{service}.yaml"
+            expected << service_environment if File.file?(service_environment)
+            expected << "values/overrides/private-dev-ha-stable.yaml" if environment == "private-dev"
+
+            unless actual.take(expected.length) == expected
+              warn "Argo values order mismatch: #{path}\n  expected prefix: #{expected.join(" -> ")}\n  actual: #{actual.join(" -> ")}"
+              exit 2
+            end
+          end
+        '
