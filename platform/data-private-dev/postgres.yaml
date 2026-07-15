@@ -91,6 +91,96 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: user-db
+  namespace: ticketing-user
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: user-db
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: user-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: user-db
+  namespace: ticketing-user
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: user-db
+spec:
+  serviceName: user-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: user-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: medikong
+        app.kubernetes.io/name: user-db
+    spec:
+      nodeSelector:
+        medikong.io/workload: data
+      containers:
+        - name: postgres
+          image: postgres:15
+          args:
+            - -c
+            - max_connections=30
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - user
+                - -d
+                - user_service
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          env:
+            - name: POSTGRES_USER
+              value: user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-user-credentials
+                  key: password
+            - name: POSTGRES_DB
+              value: user_service
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        storageClassName: medikong-local-path
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: concert-db
   namespace: ticketing-concert
   labels:

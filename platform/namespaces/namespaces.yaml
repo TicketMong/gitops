@@ -8,6 +8,27 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: ticketing-user
+  labels:
+    app.kubernetes.io/part-of: medikong
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ticketing-coupon
+  labels:
+    app.kubernetes.io/part-of: medikong
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ticketing-backoffice
+  labels:
+    app.kubernetes.io/part-of: medikong
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: ticketing-concert
   labels:
     app.kubernetes.io/part-of: medikong

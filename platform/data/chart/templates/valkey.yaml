@@ -1,0 +1,96 @@
+{{- if .Values.valkey.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.valkey.name | quote }}
+  namespace: {{ .Values.valkey.namespace | quote }}
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: {{ .Values.valkey.name | quote }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ .Values.valkey.name | quote }}
+  ports:
+    - name: redis
+      port: {{ .Values.valkey.port }}
+      targetPort: redis
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.valkey.name | quote }}
+  namespace: {{ .Values.valkey.namespace | quote }}
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: {{ .Values.valkey.name | quote }}
+spec:
+  serviceName: {{ .Values.valkey.name | quote }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.valkey.name | quote }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: medikong
+        app.kubernetes.io/name: {{ .Values.valkey.name | quote }}
+    spec:
+      containers:
+        - name: valkey
+          image: {{ .Values.valkey.image | quote }}
+          ports:
+            - name: redis
+              containerPort: {{ .Values.valkey.port }}
+          readinessProbe:
+            exec:
+              command:
+                - valkey-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - valkey-cli
+                - ping
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+{{ toYaml .Values.valkey.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.valkey.storage }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-coupon-redis-ingress
+  namespace: {{ .Values.valkey.namespace | quote }}
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: {{ .Values.valkey.name | quote }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.valkey.name | quote }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: coupon-service
+      ports:
+        - protocol: TCP
+          port: {{ .Values.valkey.port }}
+{{- end }}

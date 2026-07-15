@@ -5,6 +5,22 @@
 {{- $exporter := default dict $postgres.exporter -}}
 {{- $exporterServiceMonitor := default dict $exporter.serviceMonitor -}}
 {{- $db := index $postgres.databases $key -}}
+{{- $credentialsSecret := default dict $db.credentialsSecret -}}
+{{- if $credentialsSecret.create }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ required "postgresql.databases[].credentialsSecret.name is required" $credentialsSecret.name | quote }}
+  namespace: {{ $db.namespace | quote }}
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: {{ $db.name | quote }}
+type: Opaque
+stringData:
+  password: {{ $postgres.password | quote }}
+  database-url: {{ printf "%s://%s:%s@%s:5432/%s?sslmode=%s" (default "postgres" $credentialsSecret.scheme) ($postgres.user | urlquery) ($postgres.password | urlquery) (default $db.name $credentialsSecret.host) $db.database (default "disable" $credentialsSecret.sslMode) | quote }}
+---
+{{- end }}
 apiVersion: v1
 kind: Service
 metadata:

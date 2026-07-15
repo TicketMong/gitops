@@ -45,6 +45,38 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: allow-user-db-ingress
+  namespace: ticketing-user
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: user-db
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: user-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: user-service
+      ports:
+        - protocol: TCP
+          port: 5432
+{{- if .Values.postgresql.exporter.enabled }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: {{ .Values.postgresql.exporter.port }}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: allow-concert-db-ingress
   namespace: ticketing-concert
   labels:

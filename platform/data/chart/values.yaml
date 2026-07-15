@@ -43,3 +43,23 @@ mongodb:
       cpu: 250m
       memory: 512Mi
   storage: 1Gi
+
+valkey:
+  enabled: false
+  image: valkey/valkey:8-alpine
+  name: coupon-redis
+  namespace: ticketing-coupon
+  port: 6379
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
+    interval: 30s
+    path: /metrics
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  storage: 1Gi
