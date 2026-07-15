@@ -86,10 +86,12 @@ spec:
   (dict "name" "SERVICE_ENVIRONMENT" "value" $root.Values.environment)
 }}
 {{- $sqlalchemy := $root.Values.database.sqlalchemy }}
+{{- if ne $sqlalchemy.enabled false }}
 {{- $observabilityEnv = append $observabilityEnv (dict "name" "SQLALCHEMY_POOL_SIZE" "value" (printf "%v" $sqlalchemy.poolSize)) }}
 {{- $observabilityEnv = append $observabilityEnv (dict "name" "SQLALCHEMY_MAX_OVERFLOW" "value" (printf "%v" $sqlalchemy.maxOverflow)) }}
 {{- $observabilityEnv = append $observabilityEnv (dict "name" "SQLALCHEMY_POOL_TIMEOUT_SECONDS" "value" (printf "%v" $sqlalchemy.poolTimeoutSeconds)) }}
 {{- $observabilityEnv = append $observabilityEnv (dict "name" "SQLALCHEMY_POOL_RECYCLE_SECONDS" "value" (printf "%v" $sqlalchemy.poolRecycleSeconds)) }}
+{{- end }}
 {{- if $root.Values.observability.tracing.enabled }}
 {{- $observabilityEnv = append $observabilityEnv (dict "name" "OTEL_TRACES_EXPORTER" "value" "otlp") }}
 {{- with $root.Values.observability.tracing.otlpEndpoint }}

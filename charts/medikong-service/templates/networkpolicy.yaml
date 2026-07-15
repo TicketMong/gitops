@@ -15,8 +15,9 @@ spec:
   policyTypes:
 {{ toYaml .Values.networkPolicy.policyTypes | nindent 4 }}
 {{- $serviceMonitorNetworkPolicy := default dict .Values.serviceMonitor.networkPolicy }}
-{{- $allowPrometheusScrape := and .Values.serviceMonitor.enabled (default true $serviceMonitorNetworkPolicy.enabled) }}
+{{- $allowPrometheusScrape := and .Values.serviceMonitor.enabled (ne $serviceMonitorNetworkPolicy.enabled false) }}
 {{- $monitoringNamespace := default "monitoring" $serviceMonitorNetworkPolicy.namespace }}
+{{- $prometheusScrapePort := default .Values.serviceMonitor.port $serviceMonitorNetworkPolicy.port }}
 {{- $extraPrometheusScrapePorts := default (list) $serviceMonitorNetworkPolicy.extraPorts }}
 {{- if or .Values.networkPolicy.ingress $allowPrometheusScrape }}
   ingress:
@@ -30,7 +31,7 @@ spec:
               kubernetes.io/metadata.name: {{ $monitoringNamespace | quote }}
       ports:
         - protocol: TCP
-          port: {{ .Values.serviceMonitor.port | quote }}
+          port: {{ if kindIs "string" $prometheusScrapePort }}{{ $prometheusScrapePort | quote }}{{ else }}{{ $prometheusScrapePort }}{{ end }}
 {{- range $extraPrometheusScrapePorts }}
         - protocol: TCP
           port: {{ . }}

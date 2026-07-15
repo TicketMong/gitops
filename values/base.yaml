@@ -30,6 +30,7 @@ imagePullSecrets: []
 
 container:
   port: 8080
+  ports: []
   env: []
   envFrom: []
   resources:
@@ -54,6 +55,7 @@ container:
 
 database:
   sqlalchemy:
+    enabled: true
     poolSize: 15
     maxOverflow: 0
     poolTimeoutSeconds: 15
@@ -86,7 +88,28 @@ service:
   type: ClusterIP
   port: 8080
   targetPort: http
+  ports: []
   annotations: {}
+
+migration:
+  enabled: false
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: "-1"
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    helm.sh/hook-weight: "-5"
+  podAnnotations: {}
+  podLabels: {}
+  command: []
+  args: []
+  env: []
+  envFrom: []
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 3600
+  resources: {}
 
 ingress:
   enabled: false
@@ -122,4 +145,5 @@ serviceMonitor:
   networkPolicy:
     enabled: true
     namespace: monitoring
+    port: null
     extraPorts: []

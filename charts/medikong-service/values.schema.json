@@ -16,6 +16,7 @@
     "deployment": {
       "type": "object",
       "properties": {
+        "replicasManaged": { "type": "boolean" },
         "replicas": { "type": "integer", "minimum": 1 },
         "annotations": { "type": "object" },
         "podAnnotations": { "type": "object" },
@@ -67,7 +68,20 @@
       "properties": {
         "name": { "type": "string" },
         "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "ports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "containerPort"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "containerPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+              "protocol": { "type": "string", "enum": ["TCP", "UDP", "SCTP"] }
+            }
+          }
+        },
         "env": { "type": "array" },
+        "apiEnv": { "type": "array" },
         "envFrom": { "type": "array" },
         "resources": { "type": "object" },
         "readinessProbe": { "type": ["object", "null"] },
@@ -80,6 +94,7 @@
         "sqlalchemy": {
           "type": "object",
           "properties": {
+            "enabled": { "type": "boolean" },
             "poolSize": { "type": "integer", "minimum": 1 },
             "maxOverflow": { "type": "integer", "minimum": 0 },
             "poolTimeoutSeconds": { "type": "number", "exclusiveMinimum": 0 },
@@ -96,7 +111,8 @@
           "properties": {
             "enabled": { "type": "boolean" },
             "otlpEndpoint": { "type": "string" },
-            "excludedUrls": { "type": "string" }
+            "excludedUrls": { "type": "string" },
+            "pythonFastAPIExcludedUrlsEnabled": { "type": "boolean" }
           }
         }
       }
@@ -128,8 +144,46 @@
       "properties": {
         "type": { "type": "string" },
         "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "targetPort": {},
+        "targetPort": { "type": ["string", "integer"] },
+        "ports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "port", "targetPort"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+              "targetPort": { "type": ["string", "integer"] },
+              "protocol": { "type": "string", "enum": ["TCP", "UDP", "SCTP"] }
+            }
+          }
+        },
         "annotations": { "type": "object" }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "serviceAccount": {
+          "type": "object",
+          "properties": {
+            "create": { "type": "boolean" },
+            "name": { "type": "string" },
+            "annotations": { "type": "object" }
+          }
+        },
+        "annotations": { "type": "object" },
+        "podAnnotations": { "type": "object" },
+        "podLabels": { "type": "object" },
+        "command": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "env": { "type": "array" },
+        "envFrom": { "type": "array" },
+        "backoffLimit": { "type": "integer", "minimum": 0 },
+        "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },
+        "ttlSecondsAfterFinished": { "type": "integer", "minimum": 0 },
+        "resources": { "type": "object" }
       }
     },
     "ingress": {
@@ -206,7 +260,19 @@
         "labels": { "type": "object" },
         "interval": { "type": "string" },
         "path": { "type": "string" },
-        "port": { "type": "string" }
+        "port": { "type": "string" },
+        "networkPolicy": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "namespace": { "type": "string", "minLength": 1 },
+            "port": { "type": ["string", "integer", "null"] },
+            "extraPorts": {
+              "type": "array",
+              "items": { "type": ["string", "integer"] }
+            }
+          }
+        }
       }
     }
   }

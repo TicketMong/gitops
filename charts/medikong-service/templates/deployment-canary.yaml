@@ -68,18 +68,24 @@ spec:
 {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
           ports:
+{{- if .Values.container.ports }}
+{{ toYaml .Values.container.ports | nindent 12 }}
+{{- else }}
             - name: http
               containerPort: {{ .Values.container.port }}
               protocol: TCP
+{{- end }}
 {{- $observabilityEnv := list
   (dict "name" "SERVICE_VERSION" "value" $serviceVersion)
   (dict "name" "SERVICE_ENVIRONMENT" "value" .Values.environment)
 }}
 {{- $sqlalchemy := .Values.database.sqlalchemy }}
+{{- if ne $sqlalchemy.enabled false }}
 {{- $observabilityEnv = append $observabilityEnv (dict "name" "SQLALCHEMY_POOL_SIZE" "value" (printf "%v" $sqlalchemy.poolSize)) }}
 {{- $observabilityEnv = append $observabilityEnv (dict "name" "SQLALCHEMY_MAX_OVERFLOW" "value" (printf "%v" $sqlalchemy.maxOverflow)) }}
 {{- $observabilityEnv = append $observabilityEnv (dict "name" "SQLALCHEMY_POOL_TIMEOUT_SECONDS" "value" (printf "%v" $sqlalchemy.poolTimeoutSeconds)) }}
 {{- $observabilityEnv = append $observabilityEnv (dict "name" "SQLALCHEMY_POOL_RECYCLE_SECONDS" "value" (printf "%v" $sqlalchemy.poolRecycleSeconds)) }}
+{{- end }}
 {{- if .Values.observability.profiling.enabled }}
 {{- $profiling := .Values.observability.profiling }}
 {{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_ENABLED" "value" "true") }}
