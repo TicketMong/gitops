@@ -1,0 +1,21 @@
+container:
+  env:
+    - name: DATABASE_URL
+      value: postgres://user:password@coupon-db:5432/coupon_service?sslmode=disable
+    - name: COUPON_REDIS_GATE_ENABLED
+      value: "true"
+    - name: COUPON_REDIS_GATE_FAILURE_MODE
+      value: db_fallback
+    - name: COUPON_REDIS_GATE_PENDING_TTL
+      value: 30s
+    - name: COUPON_REDIS_GATE_IDEMPOTENCY_TTL
+      value: 24h
+    - name: REDIS_URL
+      value: redis://coupon-redis.ticketing-coupon.svc.cluster.local:6379
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      cpu: 300m
+      memory: 384Mi

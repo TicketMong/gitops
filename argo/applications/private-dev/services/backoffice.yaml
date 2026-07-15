@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backoffice-private-dev
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/TicketMong/gitops.git
+      targetRevision: HEAD
+      path: charts/medikong-service
+      helm:
+        releaseName: backoffice-private-dev
+        valueFiles:
+          - $values/values/base.yaml
+          - $values/values/env/private-dev.yaml
+          - $values/values/services/backoffice.yaml
+          - $values/values/overrides/private-dev-ha-stable.yaml
+    - repoURL: https://github.com/TicketMong/gitops.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ticketing-backoffice
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

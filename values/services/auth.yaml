@@ -7,7 +7,7 @@ app:
 
 image:
   repository: auth-service
-  tag: v0.2.3
+  tag: dev
 
 deployment:
   replicas: 3
@@ -23,7 +23,7 @@ container:
       memory: 768Mi
   env:
     - name: DATABASE_URL
-      value: postgresql+psycopg://user:password@auth-db:5432/auth_db
+      value: postgres://user:password@auth-db:5432/auth_db?sslmode=disable
     - name: AUTH_TOKEN_TTL_SECONDS
       value: "900"
     - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
@@ -32,9 +32,20 @@ container:
       value: ticketing-dev-secret
     - name: JWT_ISSUER
       value: auth-service
-  apiEnv:
-    - name: UVICORN_WORKERS
-      value: "2"
+    - name: AUTH_DEV_TEST_TOKEN_ENABLED
+      value: "false"
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: http
+    initialDelaySeconds: 3
+    periodSeconds: 5
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
 
 service:
   port: 8080

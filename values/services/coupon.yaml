@@ -1,0 +1,68 @@
+app:
+  name: coupon-service
+  namespace: ticketing-coupon
+  labels:
+    dropmong.io/service: coupon
+    dropmong.io/tier: api
+
+image:
+  repository: coupon-service
+  tag: dev
+
+deployment:
+  replicas: 1
+
+container:
+  port: 8080
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: http
+    initialDelaySeconds: 3
+    periodSeconds: 5
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  env:
+    - name: DATABASE_URL
+      value: postgres://user:password@coupon-db:5432/coupon_service?sslmode=disable
+    - name: COUPON_REDIS_GATE_ENABLED
+      value: "false"
+    - name: COUPON_REDIS_GATE_FAILURE_MODE
+      value: db_fallback
+    - name: COUPON_REDIS_GATE_PENDING_TTL
+      value: 30s
+    - name: COUPON_REDIS_GATE_IDEMPOTENCY_TTL
+      value: 24h
+    - name: REDIS_URL
+      value: redis://coupon-redis:6379
+
+service:
+  port: 8080
+  targetPort: http
+
+ingress:
+  enabled: true
+  className: kong
+  objects:
+    - name: coupon-api
+      annotations:
+        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+      hosts:
+        - host: ""
+          paths:
+            - path: /coupons
+              pathType: Prefix
+
+networkPolicy:
+  enabled: false

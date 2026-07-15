@@ -1,4 +1,17 @@
 container:
+  env:
+    - name: DATABASE_URL
+      value: postgres://user:password@auth-db:5432/auth_db?sslmode=disable
+    - name: AUTH_TOKEN_TTL_SECONDS
+      value: "900"
+    - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
+      value: "604800"
+    - name: JWT_SECRET
+      value: ticketing-dev-secret
+    - name: JWT_ISSUER
+      value: auth-service
+    - name: AUTH_DEV_TEST_TOKEN_ENABLED
+      value: "true"
   resources:
     requests:
       cpu: 300m

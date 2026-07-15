@@ -21,6 +21,8 @@ container:
       value: ticketing-dev-secret
     - name: JWT_ISSUER
       value: auth-service
+    - name: AUTH_DEV_TEST_TOKEN_ENABLED
+      value: "false"
   resources:
     requests:
       cpu: 600m
